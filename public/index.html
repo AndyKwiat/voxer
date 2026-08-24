@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Voxer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #app { display: grid; grid-template-columns: 200px 1fr; height: 100%; }
+  #sidebar { display: flex; flex-direction: column; background: #111; border-right: 1px solid #222; min-height: 0; }
+  #tools { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-bottom: 1px solid #222; }
+  .tool { background: #222; color: #ddd; border: 1px solid #333; border-radius: 4px; padding: 6px; cursor: pointer; text-align: left; }
+  .tool.selected { background: #3b6fd6; border-color: #5b8ff6; color: #fff; }
+  #palette { overflow-y: auto; padding: 10px; flex: 1; }
+  .palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .slot { aspect-ratio: 1; border: 2px solid #333; border-radius: 4px; cursor: pointer; padding: 0; }
+  .slot.selected { border-color: #fff; outline: 2px solid #3b6fd6; }
+  .slot.empty { background: #1a1a1a; color: #888; font-size: 20px; border-style: dashed; }
+  #help { padding: 10px; border-top: 1px solid #222; color: #888; font-size: 11px; }
+  #help kbd { background: #222; border-radius: 3px; padding: 0 4px; color: #ccc; }
+  #status { padding: 6px 10px; border-top: 1px solid #222; color: #aaa; font-size: 11px; }
+  #view { width: 100%; height: 100%; display: block; }
+  .picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .picker { background: #1c1c1c; border: 1px solid #333; border-radius: 8px; padding: 16px; width: 280px; }
+  .picker h3 { margin: 0 0 12px; font-size: 14px; }
+  .picker-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .picker-row label { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 11px; color: #999; }
+  .picker input[type=number], .picker input#pk-hex { width: 100%; background: #111; color: #eee; border: 1px solid #333; border-radius: 4px; padding: 4px 6px; font: inherit; }
+  .picker input[type=color] { width: 60px; height: 40px; padding: 0; border: none; background: none; cursor: pointer; }
+  .swatch { flex: 1; height: 40px; border-radius: 4px; border: 1px solid #333; }
+  .picker-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .picker button { background: #222; color: #ddd; border: 1px solid #333; border-radius: 4px; padding: 6px 12px; cursor: pointer; }
+  .picker button.primary { background: #3b6fd6; border-color: #5b8ff6; color: #fff; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div id="tools"></div>
+    <div id="palette"></div>
+    <div id="help">
+      <b>Mouse</b>: left = tool · right-drag = orbit · middle/shift-drag = pan · wheel = zoom<br>
+      <b>Trackpad</b>: scroll/pinch = zoom · alt/option-drag or alt+scroll = orbit · shift-drag = pan<br>
+      <b>Keys</b>: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> tools · <kbd>[</kbd><kbd>]</kbd> color · <kbd>⌘Z</kbd>/<kbd>⇧⌘Z</kbd> undo/redo · <kbd>F</kbd> reset view · <kbd>G</kbd> grid · <kbd>Space</kbd>+drag orbit<br>
+      Double-click a color to edit it.
+    </div>
+    <div id="status"></div>
+  </div>
+  <canvas id="view"></canvas>
+</div>
+<script type="module" src="/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun test*)",
+      "Bash(bun run typecheck*)",
+      "Bash(bun run build*)",
+      "Bash(bun install*)",
+      "Bash(bun scripts/browser-check.ts*)",
+      "Read(./scripts/out/**)"
+    ]
+  }
+}

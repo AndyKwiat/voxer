@@ -1,0 +1,8 @@
+node_modules/
+public/main.js
+public/main.js.map
+scripts/out/
+.DS_Store
+*.log
+.env
+.claude/settings.local.json
