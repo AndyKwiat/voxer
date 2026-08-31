@@ -50,7 +50,7 @@ export class InputController {
     try { this.view.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
     this.drag = { mode, x: e.clientX, y: e.clientY };
     if (mode === "paint") {
-      this.editor.beginStroke();
+      this.editor.beginStroke(this.view.viewDirection());
       this.applyAt(e.clientX, e.clientY);
       this.updateGhost(e.clientX, e.clientY);
     } else this.view.showGhost(null);

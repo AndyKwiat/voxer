@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Hit } from "../src/core/Raycast";
-import { planEdit, targetCell, applyEdit, revertEdit } from "../src/core/Tools";
+import { planEdit, targetCell, applyEdit, revertEdit, dominantAxis, inPlane } from "../src/core/Tools";
 import { VoxelGrid, EMPTY } from "../src/core/VoxelGrid";
 
 const voxelHit: Hit = { cell: { x: 5, y: 5, z: 5 }, normal: { x: 0, y: 1, z: 0 }, voxel: true, t: 1 };
@@ -53,5 +53,23 @@ describe("planEdit / applyEdit / revertEdit", () => {
     expect(planEdit("paint", voxelHit, g, 2)).toBeNull();
     expect(planEdit("paint", voxelHit, g, 4)).toEqual({ x: 5, y: 5, z: 5, before: 2, after: 4 });
     expect(planEdit("eraser", voxelHit, g, 4)).toEqual({ x: 5, y: 5, z: 5, before: 2, after: EMPTY });
+  });
+});
+
+describe("dominantAxis / inPlane", () => {
+  test("picks the axis the camera looks most along", () => {
+    expect(dominantAxis({ x: 0, y: -1, z: 0 })).toBe("y"); // top-down
+    expect(dominantAxis({ x: 0.1, y: -0.2, z: -0.97 })).toBe("z"); // facing a z wall
+    expect(dominantAxis({ x: -0.9, y: 0.1, z: 0.3 })).toBe("x");
+    expect(dominantAxis({ x: 0.5, y: 0.5, z: 0.5 })).toBe("y"); // ties prefer the ground plane
+    expect(dominantAxis({ x: 0.6, y: 0.1, z: 0.6 })).toBe("x"); // then x
+  });
+
+  test("inPlane compares only the locked axis", () => {
+    const a = { x: 1, y: 2, z: 3 };
+    expect(inPlane(a, { x: 9, y: 2, z: 9 }, "y")).toBe(true);
+    expect(inPlane(a, { x: 9, y: 3, z: 9 }, "y")).toBe(false);
+    expect(inPlane(a, { x: 1, y: 9, z: 9 }, "x")).toBe(true);
+    expect(inPlane(a, { x: 9, y: 9, z: 3 }, "z")).toBe(true);
   });
 });

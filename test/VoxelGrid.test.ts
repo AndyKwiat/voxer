@@ -7,7 +7,7 @@ describe("VoxelGrid", () => {
     expect(g.size).toBe(8);
     expect(g.count).toBe(0);
     expect(g.data.length).toBe(512);
-    expect(new VoxelGrid().size).toBe(256);
+    expect(new VoxelGrid().size).toBe(32);
   });
 
   test("set / get / erase and count", () => {

@@ -20,6 +20,50 @@ describe("Editor", () => {
     expect(ed.colorHex).toBe("#000000");
   });
 
+  test("pen stroke locks to the plane most facing the camera", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.beginStroke({ x: 0.1, y: -0.9, z: 0.2 }); // looking down -> lock the horizontal x-z plane
+    expect(ed.strokePlane).toBeNull(); // nothing placed yet
+    expect(ed.applyTool(floor(2, 2))).not.toBeNull(); // anchor at (2,0,2)
+    expect(ed.strokePlane).toEqual({ axis: "y", value: 0 });
+    expect(ed.applyTool(floor(5, 6))).not.toBeNull(); // same y, anywhere in x/z
+    expect(ed.applyTool(top(2, 0, 2))).toBeNull(); // (2,1,2) leaves the plane
+    expect(ed.previewCell(top(2, 0, 2))).toBeNull(); // and shows no ghost
+    ed.endStroke();
+    expect(ed.strokePlane).toBeNull();
+  });
+
+  test("a stroke started facing a wall locks to that wall's plane", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.beginStroke({ x: 0.2, y: -0.3, z: 0.93 }); // looking mostly along +z -> lock z
+    expect(ed.applyTool(floor(4, 4))).not.toBeNull(); // anchor at (4,0,4)
+    expect(ed.strokePlane).toEqual({ axis: "z", value: 4 });
+    expect(ed.applyTool(top(4, 0, 4))).not.toBeNull(); // (4,1,4): stacking up stays in z=4
+    expect(ed.applyTool(floor(6, 4))).not.toBeNull(); // (6,0,4): sideways stays in z=4
+    expect(ed.applyTool(floor(6, 5))).toBeNull(); // z=5 is off the plane
+    ed.endStroke();
+  });
+
+  test("beginStroke without a view direction locks the horizontal plane", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.beginStroke();
+    ed.applyTool(floor(1, 1));
+    expect(ed.strokePlane).toEqual({ axis: "y", value: 0 });
+    ed.endStroke();
+  });
+
+  test("eraser and paint strokes are not plane-locked", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.setRaw(1, 0, 1, 1);
+    ed.setRaw(4, 3, 6, 1);
+    ed.setTool("eraser");
+    ed.beginStroke();
+    expect(ed.applyTool(top(1, 0, 1))).not.toBeNull();
+    expect(ed.applyTool(top(4, 3, 6))).not.toBeNull();
+    ed.endStroke();
+    expect(ed.grid.count).toBe(0);
+  });
+
   test("applyTool places with the selected color and records history", () => {
     const ed = new Editor(new VoxelGrid(8));
     const events: number[] = [];
@@ -28,7 +72,7 @@ describe("Editor", () => {
     ed.beginStroke();
     expect(ed.applyTool(floor(1, 1))).toEqual({ x: 1, y: 0, z: 1, before: EMPTY, after: Palette.toCell(5) });
     expect(ed.applyTool(floor(1, 1))).toBeNull(); // occupied now
-    ed.applyTool(top(1, 0, 1));
+    ed.applyTool(floor(2, 1)); // same stroke, same y plane
     ed.endStroke();
     expect(ed.grid.count).toBe(2);
     expect(ed.undo()).toBe(true);

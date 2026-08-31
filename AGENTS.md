@@ -7,7 +7,7 @@ keep the docs in this tree accurate as you change things.
 ## Commands
 ```sh
 bun install            # deps
-bun run dev            # build + serve http://localhost:3000 (PORT env overrides)
+bun run dev            # build + serve http://localhost:3005 (PORT env overrides); press o to open, q to quit
 bun test               # unit tests (bun:test)
 bun run typecheck      # tsc --noEmit — must be clean
 bun run build          # bundles src/main.ts -> public/main.js (gitignored)
@@ -16,10 +16,11 @@ bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see
 
 ## Fixed decisions (do not relitigate)
 - Three.js is the only runtime dependency. No UI framework; plain DOM.
-- Voxel space is 256³, **Y is up, Z is forward**, cells are unit cubes at integer coords.
+- Voxel space is 32³ by default (max 256³), **Y is up, Z is forward**, cells are unit cubes at integer coords.
 - Grid cell value: `0` = empty, `n` = palette index `n-1` (`Palette.toCell/fromCell`).
 - Fixed, growable palette (starts with 32, max 255). Editing a color recolors all voxels using it.
-- Tools: pen, eraser, paint. Undo/redo groups edits per mouse stroke.
+- Tools: pen, eraser, paint. Undo/redo groups edits per mouse stroke. A held pen drag is locked to one plane —
+  orientation from the camera direction at press, offset from the first voxel placed; see `docs/CONTROLS.md`.
 - Black background, grid lines on floor + back wall (z=0) + left wall (x=0), every cell, brighter every 16.
 - Orbit camera. Controls in `docs/CONTROLS.md`.
 - Server is TypeScript (`Bun.serve`), currently static-only; save/load endpoints will live there.

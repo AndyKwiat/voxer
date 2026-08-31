@@ -51,3 +51,21 @@ export function applyEdit(grid: VoxelGrid, e: Edit): void {
 export function revertEdit(grid: VoxelGrid, e: Edit): void {
   grid.set(e.x, e.y, e.z, e.before);
 }
+
+export type Axis = "x" | "y" | "z";
+
+/**
+ * Axis normal to the plane a viewer looking along `dir` sees most face-on — the largest
+ * component of the view direction. Looking top-down (`dir ≈ 0,-1,0`) gives `"y"`, i.e. the
+ * horizontal x-z plane. Ties prefer y, then x.
+ */
+export function dominantAxis(dir: Vec3): Axis {
+  const ax = Math.abs(dir.x), ay = Math.abs(dir.y), az = Math.abs(dir.z);
+  if (ay >= ax && ay >= az) return "y";
+  return ax >= az ? "x" : "z";
+}
+
+/** True if `c` is in the `axis`-normal plane through `anchor`. */
+export function inPlane(anchor: Vec3, c: Vec3, axis: Axis): boolean {
+  return c[axis] === anchor[axis];
+}

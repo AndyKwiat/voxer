@@ -1,4 +1,4 @@
-export const GRID_SIZE = 256;
+export const GRID_SIZE = 32;
 export const EMPTY = 0;
 
 export interface Voxel {

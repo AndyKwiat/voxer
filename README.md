@@ -6,7 +6,7 @@ A minimal 3D voxel editor. TypeScript + Three.js in the browser, Bun for everyth
 
 ```sh
 bun install
-bun run dev      # builds, then serves http://localhost:3000 (PORT env to change)
+bun run dev      # builds, then serves http://localhost:3005 (PORT env to change); o opens it, q quits
 bun test         # unit tests
 bun run typecheck
 bun scripts/browser-check.ts   # headless Chrome smoke test + screenshot
@@ -21,7 +21,7 @@ Append `?demo` to the URL to start with a few voxels placed.
 - Palette: click to select, double-click to edit (repaints all voxels using it), `+` adds a color.
 
 ## Layout
-- `src/core/` — pure logic, no DOM: `Editor` (all state + events), `VoxelGrid` (256³ `Uint8Array`), `Palette`, `Raycast` (DDA voxel traversal + floor/wall planes), `Tools`, `History` (undo/redo strokes)
+- `src/core/` — pure logic, no DOM: `Editor` (all state + events), `VoxelGrid` (32³ `Uint8Array` by default, up to 256³), `Palette`, `Raycast` (DDA voxel traversal + floor/wall planes), `Tools`, `History` (undo/redo strokes)
 - `src/render/` — Three.js: chunked meshing with face culling, grid lines, orbit camera, viewport
 - `src/ui/` — views over the Editor (palette panel, toolbar, status bar, color picker) and `InputController` (mouse/trackpad/keyboard bindings)
 - `server/index.ts` — static file server (`Bun.serve`); the place to add save/load endpoints later

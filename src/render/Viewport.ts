@@ -75,6 +75,12 @@ export class Viewport {
     this.invalidate();
   }
 
+  /** Unit vector the camera is looking along, in world space. */
+  viewDirection(): Vec3 {
+    const d = this.orbit.camera.getWorldDirection(new THREE.Vector3());
+    return { x: d.x, y: d.y, z: d.z };
+  }
+
   /** Casts a ray from a client-space point through the voxel grid. */
   pick(grid: VoxelGrid, clientX: number, clientY: number): Hit | null {
     const r = this.canvas.getBoundingClientRect();
