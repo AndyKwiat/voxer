@@ -203,15 +203,19 @@ describe("Editor box tool", () => {
     expect(ed.commitBox().length).toBe(5);
   });
 
-  test("escape cancels the box and falls back to the pen", () => {
+  test("escape cancels the box but keeps the box tool selected", () => {
     const ed = new Editor(new VoxelGrid(8));
     start(ed);
     ed.beginBoxHeight();
     ed.setBoxTop(5);
     ed.cancelBox();
     expect(ed.boxDraft).toBeNull();
-    expect(ed.tool).toBe("pen");
+    expect(ed.tool).toBe("box");
     expect(ed.grid.count).toBe(0);
+    // and the tool is immediately usable again
+    ed.beginBox({ x: 0, y: 0, z: 0 });
+    ed.beginBoxHeight();
+    expect(ed.commitBox().length).toBe(1);
   });
 
   test("switching tools mid-draw discards the box", () => {

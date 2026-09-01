@@ -22,7 +22,7 @@
 1. **Footprint** — press and drag. The cell you press on fixes a horizontal plane; dragging rubber-bands
    a rectangle on it (the pointer follows that plane, so you can drag out over empty space).
 2. **Height** — release the button. Now moving the pointer raises or lowers the top; the status bar shows
-   the live `w×h×d`. **Click** to place the box, or **Esc** to cancel — cancelling switches back to the pen.
+   the live `w×h×d`. **Click** to place the box, or **Esc** to cancel — the box tool stays selected, ready for the next one.
 
 Like the pen, the box only fills empty cells, and the whole box is a single undo step. Switching tools
 mid-draw discards it.

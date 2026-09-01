@@ -173,11 +173,10 @@ export class Editor extends Emitter<EditorEvents> {
     return edits;
   }
 
-  /** Escape: throw the box away and fall back to the default tool. */
+  /** Escape: throw the current box away; the box tool stays selected. */
   cancelBox(): void {
     if (!this._box) return;
     this.clearBox();
-    this.setTool("pen");
   }
 
   /** Applies the current tool at a hit. Returns the edit made, if any. */
