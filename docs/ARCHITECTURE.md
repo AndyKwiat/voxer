@@ -23,7 +23,7 @@
 | `core/Scene` | versioned save format: `encodeScene`/`decodeScene`, RLE, migrations | see `docs/FORMAT.md` |
 | `render/ChunkMesher` | 16³ chunks, exposed-face meshes with vertex colors, dirty tracking | rebuilt lazily in the render loop |
 | `render/GridLines` | floor + 2 walls, lines split into 16-unit pieces | split works around SwiftShader clipping bug |
-| `render/OrbitCamera` | spherical orbit around a target; rotate/pan/zoom | `F` resets |
+| `render/OrbitCamera` | spherical orbit around a target; rotate/pan/zoom; perspective + orthographic in one pose | `F` resets, `C` swaps projection |
 | `render/Viewport` | scene, lights, ghost cube, pick(), render-on-demand loop | subscribes to Editor |
 | `ui/InputController` | all bindings (see CONTROLS.md) | the only place that reads pointer/keyboard |
 | `ui/SceneBar` | Open / Save / Save As buttons + `scenesApi` fetch calls + modal dialogs | scene name lives on `Editor`, not here |

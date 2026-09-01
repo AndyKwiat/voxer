@@ -2,7 +2,7 @@
 
 | File | What | Key API |
 |---|---|---|
-| `Editor.ts` | **All mutable state** + typed events | `setTool`, `setColor/stepColor/addColor`, `applyTool(hit)`, `beginStroke(viewDir?)/endStroke`, `strokePlane`, `beginBox/setBoxCorner/beginBoxHeight/setBoxTop/commitBox/cancelBox`, `boxDraft`, `toScene/loadScene`, `sceneName/dirty/markSaved`, `undo/redo`, `previewCell(hit)`, `setRaw` (no history) |
+| `Editor.ts` | **All mutable state** + typed events | `setTool`, `setColor/stepColor/addColor`, `applyTool(hit)`, `beginStroke(viewDir?)/endStroke`, `strokePlane`, `beginBox/setBoxCorner/beginBoxHeight/setBoxTop/commitBox/cancelBox`, `boxDraft`, `toScene/loadScene`, `sceneName/dirty/markSaved`, `setHover/hoverCell`, `undo/redo`, `previewCell(hit)`, `setRaw` (no history) |
 | `VoxelGrid.ts` | 32³ default (max 256³) `Uint8Array`; 0 = empty | `get/set/erase/has/inBounds/count/occupied()` |
 | `Palette.ts` | hex color list, 32 defaults, max 255 | `add/update/get/all`, `toCell/fromCell`, `hexToRgb/rgbToHex/normalizeHex` |
 | `Raycast.ts` | DDA through grid → `Hit {cell, normal, voxel, t}`; floor/walls are hits with `voxel:false` and cell just outside grid (`y:-1` / `z:-1` / `x:-1`) | `raycastGrid(grid, origin, dir)` |

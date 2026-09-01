@@ -23,7 +23,7 @@ bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see
   orientation from the camera direction at press, offset from the first voxel placed; see `docs/CONTROLS.md`.
 - Black background, grid lines on floor + back wall (z=0) + left wall (x=0), every cell, brighter every 16.
 - `W` toggles thin dark outlines on visible voxel faces (solid colors stay — not a wireframe mode).
-- Orbit camera. Controls in `docs/CONTROLS.md`.
+- Orbit camera, perspective by default, `C` swaps to orthographic (same pose). Controls in `docs/CONTROLS.md`.
 - Server is TypeScript (`Bun.serve`): static files + `/api/scenes` save/load into `saves/`.
 - Scene files are versioned JSON; **read `docs/FORMAT.md` before changing the format** — old saves must keep loading.
 

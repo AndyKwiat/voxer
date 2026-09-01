@@ -258,3 +258,26 @@ describe("Editor box tool", () => {
     expect(ed.previewCell(hit)).toBeNull();
   });
 });
+
+describe("Editor hover readout", () => {
+  test("setHover emits only when the cell actually changes", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    const seen: (string | null)[] = [];
+    ed.on("hover", (c) => seen.push(c && `${c.x},${c.y},${c.z}`));
+    ed.setHover({ x: 1, y: 2, z: 3 });
+    ed.setHover({ x: 1, y: 2, z: 3 }); // same cell, different object
+    ed.setHover({ x: 1, y: 2, z: 4 });
+    ed.setHover(null);
+    ed.setHover(null);
+    expect(seen).toEqual(["1,2,3", "1,2,4", null]);
+    expect(ed.hoverCell).toBeNull();
+  });
+
+  test("hoverCell is a copy, so callers cannot mutate editor state", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    const cell = { x: 4, y: 5, z: 6 };
+    ed.setHover(cell);
+    cell.x = 99;
+    expect(ed.hoverCell).toEqual({ x: 4, y: 5, z: 6 });
+  });
+});

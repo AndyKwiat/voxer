@@ -25,6 +25,9 @@
   #help kbd { background: #222; border-radius: 3px; padding: 0 4px; color: #ccc; }
   #status { padding: 6px 10px; border-top: 1px solid #222; color: #aaa; font-size: 11px; }
   #view { width: 100%; height: 100%; display: block; }
+  #viewport { position: relative; min-width: 0; }
+  #hud { position: absolute; top: 10px; right: 12px; text-align: right; color: #8a8a8a; font-size: 11px; line-height: 1.5; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #hud .hud-pos { color: #c8c8c8; font-variant-numeric: tabular-nums; }
   .picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .picker { background: #1c1c1c; border: 1px solid #333; border-radius: 8px; padding: 16px; width: 280px; }
   .picker h3 { margin: 0 0 12px; font-size: 14px; }
@@ -53,13 +56,16 @@
     <div id="help">
       <b>Mouse</b>: left = tool · right-drag = orbit · middle/shift-drag = pan · wheel = zoom<br>
       <b>Trackpad</b>: scroll/pinch = zoom · alt/option-drag or alt+scroll = orbit · shift-drag = pan<br>
-      <b>Keys</b>: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> tools · <kbd>[</kbd><kbd>]</kbd> color · <kbd>⌘Z</kbd>/<kbd>⇧⌘Z</kbd> undo/redo · <kbd>⌘S</kbd> save · <kbd>⇧⌘S</kbd> save as · <kbd>⌘O</kbd> open · <kbd>F</kbd> reset view · <kbd>G</kbd> grid · <kbd>W</kbd> outlines · <kbd>Space</kbd>+drag orbit<br>
+      <b>Keys</b>: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> tools · <kbd>[</kbd><kbd>]</kbd> color · <kbd>⌘Z</kbd>/<kbd>⇧⌘Z</kbd> undo/redo · <kbd>⌘S</kbd> save · <kbd>⇧⌘S</kbd> save as · <kbd>⌘O</kbd> open · <kbd>F</kbd> reset view · <kbd>G</kbd> grid · <kbd>C</kbd> camera · <kbd>W</kbd> outlines · <kbd>Space</kbd>+drag orbit<br>
       Double-click a color to edit it.<br>
       <b>Box</b>: drag the footprint · release · move to set height · click to place · <kbd>Esc</kbd> cancels
     </div>
     <div id="status"></div>
   </div>
-  <canvas id="view"></canvas>
+  <div id="viewport">
+    <canvas id="view"></canvas>
+    <div id="hud"></div>
+  </div>
 </div>
 <script type="module" src="/main.js"></script>
 </body>

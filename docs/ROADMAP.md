@@ -7,6 +7,7 @@
 - Mouse / trackpad / keyboard controls
 - Static Bun server, unit tests, headless browser check
 - Box tool (footprint drag → height → click)
+- Orthographic camera toggle (`C`) + corner readout of projection and hovered cell
 - Voxel outline toggle (`W`)
 - Save / load: versioned JSON scenes (`docs/FORMAT.md`), `/api/scenes` endpoints, Open / Save / Save As
 

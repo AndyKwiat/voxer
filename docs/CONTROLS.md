@@ -15,6 +15,7 @@
 | Reset view | | | `F` |
 | Toggle grid | | | `G` |
 | Toggle voxel outlines | | | `W` |
+| Perspective ⇄ orthographic | | | `C` |
 | Add color | `+` slot → picker | | |
 | Edit color | double-click slot → picker (Esc/Cancel/click-outside cancels) | | |
 
@@ -26,6 +27,14 @@
 
 Like the pen, the box only fills empty cells, and the whole box is a single undo step. Switching tools
 mid-draw discards it.
+
+The readout in the top-right corner of the viewport shows the current camera projection and the
+`x y z` of the cell under the pointer (the cell the tool would act on; `—` when the pointer is off
+the grid). While a box is being drawn it follows the far corner of the box.
+
+`C` swaps between the perspective camera (default) and an orthographic one. Both share the same pose
+and the ortho frustum is sized from the perspective field of view at the target, so the view does not
+jump; orbit, pan, zoom and picking all behave the same in either.
 
 `W` outlines every visible voxel face with a thin dark border. Colors stay solid and lit — it is not a
 wireframe, it just makes individual cells readable in a large block.

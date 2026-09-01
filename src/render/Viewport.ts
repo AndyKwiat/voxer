@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OrbitCamera } from "./OrbitCamera";
+import { OrbitCamera, type Projection } from "./OrbitCamera";
 import { makeGridLines } from "./GridLines";
 import { ChunkedVoxelMesh } from "./ChunkMesher";
 import type { Editor } from "../core/Editor";
@@ -19,6 +19,8 @@ export class Viewport {
   private boxEdges: THREE.LineSegments;
   private raycaster = new THREE.Raycaster();
   private needsRender = true;
+  /** Fired when a view-only setting changes (projection, grid, outlines) so HUDs can refresh. */
+  readonly onViewChange = new Set<() => void>();
 
   constructor(readonly canvas: HTMLCanvasElement, editor: Editor) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -79,16 +81,33 @@ export class Viewport {
     this.needsRender = true;
   }
 
+  /** Current camera projection. */
+  get projection(): Projection {
+    return this.orbit.projection;
+  }
+
+  /** Swaps perspective ⇄ orthographic (`C`). Returns the new projection. */
+  toggleProjection(): Projection {
+    const p = this.orbit.toggleProjection();
+    this.changed();
+    return p;
+  }
+
+  private changed(): void {
+    this.invalidate();
+    for (const f of this.onViewChange) f();
+  }
+
   /** Outlines every visible voxel face (colors stay solid). Returns the new state. */
   toggleEdges(): boolean {
     this.voxels.setEdges(!this.voxels.edgesVisible);
-    this.invalidate();
+    this.changed();
     return this.voxels.edgesVisible;
   }
 
   toggleGrid(): void {
     this.gridLines.visible = !this.gridLines.visible;
-    this.invalidate();
+    this.changed();
   }
 
   resize(): void {

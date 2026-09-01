@@ -20,6 +20,8 @@ export type EditorEvents = {
   scene: [name: string | null, dirty: boolean];
   /** In-progress box changed (null when there is none). */
   box: [draft: BoxDraft | null];
+  /** Cell under the pointer changed (null when the pointer is off the grid). */
+  hover: [cell: Vec3 | null];
 };
 
 /**
@@ -43,6 +45,7 @@ export class Editor extends Emitter<EditorEvents> {
   /** Normal of that plane, chosen from the view direction when the stroke began. */
   private _lockAxis: Axis = "y";
   private _box: { anchor: Vec3; corner: Vec3; topY: number; phase: "rect" | "height" } | null = null;
+  private _hover: Vec3 | null = null;
   private _sceneName: string | null = null;
   private _dirty = false;
   /** Fields from a loaded file this build does not know about; written back on save. */
@@ -105,6 +108,17 @@ export class Editor extends Emitter<EditorEvents> {
     if (this._box) return null;
     const c = hit ? targetCell(this._tool, hit, this.grid) : null;
     return c && this.inStrokePlane(c) ? c : null;
+  }
+
+  /** Cell the pointer is over, for the coordinate readout. Set by `InputController`. */
+  get hoverCell(): Vec3 | null {
+    return this._hover;
+  }
+  setHover(cell: Vec3 | null): void {
+    const c = this._hover;
+    if (c === cell || (c && cell && c.x === cell.x && c.y === cell.y && c.z === cell.z)) return;
+    this._hover = cell && { ...cell };
+    this.emit("hover", this._hover);
   }
 
   // ---- box tool: click-drag a footprint, release, move to set height, click to commit ----

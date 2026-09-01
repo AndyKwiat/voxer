@@ -11,7 +11,8 @@ All views are stateless and re-render from `Editor` events. Never store selectio
 | `SceneBar.ts` | Open / Save / Save As. `save()` only prompts when the scene has no name yet; `saveAs()` always does. |
 | `SceneDialogs.ts` | `openNamePrompt(title, initial)` and `openScenePicker(list)` — same modal shell as `ColorPicker`. |
 | `scenesApi.ts` | `listScenes/fetchScene/putScene` against `/api/scenes`; throws with the server's error text. |
+| `ViewInfo.ts` | Top-right viewport readout: camera projection + hovered `x y z`. Listens to `Editor` `hover` and `Viewport.onViewChange`. |
 | `StatusBar.ts` | `scene* · tool · color N · count voxels`; shows `box w×h×d` while a box is being drawn. |
 
-Markup and CSS live in `public/index.html` (ids: `view`, `tools`, `scenes`, `palette`, `status`, `help`).
+Markup and CSS live in `public/index.html` (ids: `view`, `viewport`, `hud`, `tools`, `scenes`, `palette`, `status`, `help`).
 When you change a binding, update the help block in `index.html` and `docs/CONTROLS.md`.

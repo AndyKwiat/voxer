@@ -17,7 +17,7 @@ export interface InputActions {
  *  Trackpad: scroll / pinch = zoom, alt+drag or alt+scroll = orbit, shift+drag = pan
  *  Keys:     1/2/3 or B/E/P tools, Tab next tool, [ ] color, Cmd/Ctrl+Z undo, Shift+Cmd+Z / Cmd+Y redo,
  *            Cmd+S save, Shift+Cmd+S save as, Cmd+O open, F reset view, G toggle grid,
- *            W toggle voxel outlines, Esc cancel a box, Space+drag orbit
+ *            W toggle voxel outlines, C perspective/orthographic, Esc cancel a box, Space+drag orbit
  */
 export class InputController {
   private drag: { mode: DragMode; x: number; y: number } | null = null;
@@ -30,7 +30,11 @@ export class InputController {
     c.addEventListener("pointermove", (e) => this.onMove(e));
     c.addEventListener("pointerup", (e) => this.onUp(e));
     c.addEventListener("pointercancel", (e) => this.onUp(e));
-    c.addEventListener("pointerleave", () => { if (!this.drag) view.showGhost(null); });
+    c.addEventListener("pointerleave", () => {
+      if (this.drag) return;
+      view.showGhost(null);
+      editor.setHover(null);
+    });
     c.addEventListener("wheel", (e) => this.onWheel(e), { passive: false });
     window.addEventListener("keydown", (e) => this.onKey(e));
     window.addEventListener("keyup", (e) => { if (e.key === " ") this.spaceHeld = false; });
@@ -50,8 +54,11 @@ export class InputController {
 
   private updateGhost(x: number, y: number): void {
     const hit = this.view.pick(this.editor.grid, x, y);
+    const cell = this.editor.previewCell(hit);
     const color = this.editor.tool === "eraser" ? "#ff3333" : this.editor.colorHex;
-    this.view.showGhost(this.editor.previewCell(hit), color);
+    this.view.showGhost(cell, color);
+    // The readout follows the ghost, falling back to the cell actually under the pointer.
+    this.editor.setHover(cell ?? hit?.cell ?? null);
   }
 
   private onDown(e: PointerEvent): void {
@@ -111,6 +118,8 @@ export class InputController {
       const h = this.view.heightAt(x, y, anchor);
       if (h !== null) this.editor.setBoxTop(Math.floor(h));
     }
+    // Readout follows the moving corner of the box, after it has been updated.
+    this.editor.setHover(this.editor.boxDraft?.region.max ?? null);
     this.view.invalidate();
   }
 
@@ -144,6 +153,7 @@ export class InputController {
       case "f": this.view.orbit.reset(); this.view.invalidate(); break;
       case "g": this.view.toggleGrid(); break;
       case "w": this.view.toggleEdges(); break;
+      case "c": this.view.toggleProjection(); break;
       case "escape": this.editor.cancelBox(); break;
       case " ": this.spaceHeld = true; e.preventDefault(); break;
     }

@@ -5,6 +5,7 @@ import { InputController } from "./ui/InputController";
 import { SceneBar } from "./ui/SceneBar";
 import { PalettePanel } from "./ui/PalettePanel";
 import { StatusBar } from "./ui/StatusBar";
+import { ViewInfo } from "./ui/ViewInfo";
 import { Toolbar } from "./ui/Toolbar";
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -14,6 +15,7 @@ const view = new Viewport($("view") as HTMLCanvasElement, editor);
 new Toolbar($("tools"), editor);
 new PalettePanel($("palette"), editor);
 new StatusBar($("status"), editor);
+new ViewInfo($("hud"), editor, view);
 const scenes = new SceneBar($("scenes"), editor);
 new InputController(editor, view, {
   save: () => void scenes.save(),
