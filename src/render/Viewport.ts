@@ -25,7 +25,7 @@ export class Viewport {
     this.gridLines = makeGridLines(editor.grid.size);
     this.scene.add(this.gridLines);
     this.voxels = new ChunkedVoxelMesh(editor.grid, editor.palette);
-    this.scene.add(this.voxels.group);
+    this.scene.add(this.voxels.group, this.voxels.edgeGroup);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.9));
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.position.set(0.6, 1, 0.4);
@@ -61,6 +61,13 @@ export class Viewport {
 
   invalidate(): void {
     this.needsRender = true;
+  }
+
+  /** Outlines every visible voxel face (colors stay solid). Returns the new state. */
+  toggleEdges(): boolean {
+    this.voxels.setEdges(!this.voxels.edgesVisible);
+    this.invalidate();
+    return this.voxels.edgesVisible;
   }
 
   toggleGrid(): void {

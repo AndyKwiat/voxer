@@ -17,7 +17,7 @@ Append `?demo` to the URL to start with a few voxels placed.
 ## Controls
 - **Mouse**: left = apply tool (drag to keep applying) · right-drag = orbit · middle-drag or shift-drag = pan · wheel = zoom
 - **Trackpad**: two-finger scroll / pinch = zoom · alt/option-drag or alt+scroll = orbit · shift-drag = pan
-- **Keys**: `1`/`2`/`3` (or `B`/`E`/`P`) pen/eraser/paint · `Tab` next tool · `[` `]` prev/next color · `⌘Z` undo · `⇧⌘Z` / `⌘Y` redo · `⌘S` save · `⇧⌘S` save as · `⌘O` open · `F` reset view · `G` toggle grid · hold `Space` + drag to orbit
+- **Keys**: `1`/`2`/`3` (or `B`/`E`/`P`) pen/eraser/paint · `Tab` next tool · `[` `]` prev/next color · `⌘Z` undo · `⇧⌘Z` / `⌘Y` redo · `⌘S` save · `⇧⌘S` save as · `⌘O` open · `F` reset view · `G` toggle grid · `W` voxel outlines · hold `Space` + drag to orbit
 - Palette: click to select, double-click to edit (repaints all voxels using it), `+` adds a color.
 
 ## Saving

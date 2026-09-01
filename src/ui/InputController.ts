@@ -15,7 +15,8 @@ export interface InputActions {
  *  Mouse:    left = tool (drag to keep applying), right-drag = orbit, middle or shift+left = pan, wheel = zoom
  *  Trackpad: scroll / pinch = zoom, alt+drag or alt+scroll = orbit, shift+drag = pan
  *  Keys:     1/2/3 or B/E/P tools, Tab next tool, [ ] color, Cmd/Ctrl+Z undo, Shift+Cmd+Z / Cmd+Y redo,
- *            Cmd+S save, Shift+Cmd+S save as, Cmd+O open, F reset view, G toggle grid, Space+drag orbit
+ *            Cmd+S save, Shift+Cmd+S save as, Cmd+O open, F reset view, G toggle grid,
+ *            W toggle voxel outlines, Space+drag orbit
  */
 export class InputController {
   private drag: { mode: DragMode; x: number; y: number } | null = null;
@@ -109,6 +110,7 @@ export class InputController {
       case "]": this.editor.stepColor(1); break;
       case "f": this.view.orbit.reset(); this.view.invalidate(); break;
       case "g": this.view.toggleGrid(); break;
+      case "w": this.view.toggleEdges(); break;
       case " ": this.spaceHeld = true; e.preventDefault(); break;
     }
   }

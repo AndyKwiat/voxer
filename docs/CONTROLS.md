@@ -14,8 +14,12 @@
 | Open a scene | sidebar `Open…` | | `⌘O` |
 | Reset view | | | `F` |
 | Toggle grid | | | `G` |
+| Toggle voxel outlines | | | `W` |
 | Add color | `+` slot → picker | | |
 | Edit color | double-click slot → picker (Esc/Cancel/click-outside cancels) | | |
+
+`W` outlines every visible voxel face with a thin dark border. Colors stay solid and lit — it is not a
+wireframe, it just makes individual cells readable in a large block.
 
 Ghost cube shows the target cell for the current tool (red for eraser). It hides when the cell is
 blocked by the pen's plane lock (below).

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildChunkGeometry, CHUNK } from "../src/render/ChunkMesher";
+import { buildChunkEdgeGeometry, buildChunkGeometry, ChunkedVoxelMesh, CHUNK } from "../src/render/ChunkMesher";
 import { Palette } from "../src/core/Palette";
 import { VoxelGrid } from "../src/core/VoxelGrid";
 
@@ -30,9 +30,41 @@ describe("buildChunkGeometry", () => {
   });
 });
 
+describe("buildChunkEdgeGeometry", () => {
+  const segments = (geo: { getAttribute(n: string): { count: number } } | null) =>
+    geo ? geo.getAttribute("position").count / 2 : 0;
+
+  test("empty chunk yields null", () => {
+    expect(buildChunkEdgeGeometry(new VoxelGrid(32), 0, 0, 0)).toBeNull();
+  });
+
+  test("a lone voxel is outlined by its 12 cube edges", () => {
+    const g = new VoxelGrid(32);
+    g.set(1, 1, 1, 1);
+    expect(segments(buildChunkEdgeGeometry(g, 0, 0, 0))).toBe(12);
+  });
+
+  test("touching voxels share the seam and drop hidden faces' edges", () => {
+    const g = new VoxelGrid(32);
+    g.set(1, 1, 1, 1);
+    g.set(2, 1, 1, 1);
+    // 12 edges per cube, minus the 4 they share along the seam.
+    expect(segments(buildChunkEdgeGeometry(g, 0, 0, 0))).toBe(20);
+  });
+
+  test("each chunk outlines its own voxels, hidden faces included in the seam", () => {
+    const g = new VoxelGrid(32);
+    g.set(CHUNK - 1, 0, 0, 1);
+    g.set(CHUNK, 0, 0, 1);
+    // The touching face is culled, but its 4 edges still border the 4 visible side faces,
+    // so each voxel keeps a full 12-edge box — which is the point: you can see cell boundaries.
+    expect(segments(buildChunkEdgeGeometry(g, 0, 0, 0))).toBe(12);
+    expect(segments(buildChunkEdgeGeometry(g, 1, 0, 0))).toBe(12);
+  });
+});
+
 describe("ChunkedVoxelMesh", () => {
-  test("marks border neighbours only when in bounds; update clears dirty", async () => {
-    const { ChunkedVoxelMesh } = await import("../src/render/ChunkMesher");
+  test("marks border neighbours only when in bounds; update clears dirty", () => {
     const g = new VoxelGrid(32);
     const m = new ChunkedVoxelMesh(g, new Palette(["#ffffff"]));
     m.markVoxel(0, 0, 0);
@@ -47,5 +79,27 @@ describe("ChunkedVoxelMesh", () => {
     expect(m.group.children.length).toBe(1);
     m.markAll();
     expect(m.dirtyCount).toBe(1);
+  });
+
+  test("setEdges builds outlines only while on", () => {
+    const g = new VoxelGrid(32);
+    g.set(1, 1, 1, 1);
+    const m = new ChunkedVoxelMesh(g, new Palette(["#ffffff"]));
+    m.markVoxel(1, 1, 1);
+    m.update();
+    expect(m.edgesVisible).toBe(false);
+    expect(m.edgeGroup.children.length).toBe(0);
+
+    m.setEdges(true);
+    expect(m.dirtyCount).toBe(1); // existing chunks are re-meshed to pick up outlines
+    m.update();
+    expect(m.edgeGroup.children.length).toBe(1);
+
+    m.setEdges(true); // idempotent
+    expect(m.dirtyCount).toBe(0);
+
+    m.setEdges(false);
+    expect(m.edgeGroup.children.length).toBe(0);
+    expect(m.group.children.length).toBe(1); // the solid mesh is untouched
   });
 });

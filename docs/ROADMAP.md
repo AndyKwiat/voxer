@@ -6,6 +6,7 @@
 - Sidebar: tools, scrollable palette with add/edit picker (hex + RGB), status bar
 - Mouse / trackpad / keyboard controls
 - Static Bun server, unit tests, headless browser check
+- Voxel outline toggle (`W`)
 - Save / load: versioned JSON scenes (`docs/FORMAT.md`), `/api/scenes` endpoints, Open / Save / Save As
 
 ## Next (in rough priority)
