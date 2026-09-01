@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Hit } from "../src/core/Raycast";
-import { planEdit, targetCell, applyEdit, revertEdit, dominantAxis, inPlane } from "../src/core/Tools";
+import {
+  planEdit, targetCell, applyEdit, revertEdit, dominantAxis, inPlane, makeBoxRegion, boxSize, planBoxEdits,
+} from "../src/core/Tools";
 import { VoxelGrid, EMPTY } from "../src/core/VoxelGrid";
 
 const voxelHit: Hit = { cell: { x: 5, y: 5, z: 5 }, normal: { x: 0, y: 1, z: 0 }, voxel: true, t: 1 };
@@ -71,5 +73,37 @@ describe("dominantAxis / inPlane", () => {
     expect(inPlane(a, { x: 9, y: 3, z: 9 }, "y")).toBe(false);
     expect(inPlane(a, { x: 1, y: 9, z: 9 }, "x")).toBe(true);
     expect(inPlane(a, { x: 9, y: 9, z: 3 }, "z")).toBe(true);
+  });
+});
+
+describe("box regions", () => {
+  test("normalizes corners and extrudes either way, clamped to the grid", () => {
+    const a = { x: 5, y: 2, z: 7 }, b = { x: 1, y: 9, z: 3 }; // b.y is ignored
+    expect(makeBoxRegion(a, b, 4, 32)).toEqual({ min: { x: 1, y: 2, z: 3 }, max: { x: 5, y: 4, z: 7 } });
+    expect(makeBoxRegion(a, b, 0, 32)).toEqual({ min: { x: 1, y: 0, z: 3 }, max: { x: 5, y: 2, z: 7 } });
+    expect(makeBoxRegion(a, { x: 99, y: 0, z: -4 }, 999, 32))
+      .toEqual({ min: { x: 5, y: 2, z: 0 }, max: { x: 31, y: 31, z: 7 } });
+    expect(boxSize(makeBoxRegion(a, b, 4, 32))).toEqual([5, 3, 5]);
+  });
+
+  test("a single cell is a 1x1x1 region", () => {
+    const c = { x: 3, y: 3, z: 3 };
+    expect(boxSize(makeBoxRegion(c, c, 3, 32))).toEqual([1, 1, 1]);
+  });
+
+  test("planBoxEdits fills only empty cells", () => {
+    const g = new VoxelGrid(8);
+    g.set(1, 0, 1, 9);
+    const edits = planBoxEdits(g, { min: { x: 0, y: 0, z: 0 }, max: { x: 1, y: 1, z: 1 } }, 3);
+    expect(edits.length).toBe(7); // 8 cells minus the occupied one
+    expect(edits.every((e) => e.before === EMPTY && e.after === 3)).toBe(true);
+    expect(edits.some((e) => e.x === 1 && e.y === 0 && e.z === 1)).toBe(false);
+  });
+
+  test("box has no single-cell edit; targetCell still previews like the pen", () => {
+    const g = new VoxelGrid(8);
+    const hit = { cell: { x: 2, y: -1, z: 2 }, normal: { x: 0, y: 1, z: 0 }, voxel: false, t: 1 };
+    expect(targetCell("box", hit, g)).toEqual({ x: 2, y: 0, z: 2 });
+    expect(planEdit("box", hit, g, 1)).toBeNull();
   });
 });

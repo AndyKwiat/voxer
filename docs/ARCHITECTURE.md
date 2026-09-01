@@ -17,7 +17,7 @@
 | `core/VoxelGrid` | 32³ default (max 256³) `Uint8Array`, bounds checks, occupied count/iterator | index = `(y*S + z)*S + x` |
 | `core/Palette` | ordered hex colors, add/update, hex⇄RGB | `onChange` set; `toCell/fromCell` |
 | `core/Raycast` | Amanatides–Woo DDA; returns first voxel **or** floor/wall plane hit with face normal | pen on empty space places on floor/walls because those planes are hits with `voxel:false` |
-| `core/Tools` | pen/eraser/paint: `targetCell`, `planEdit` (pure), `applyEdit/revertEdit` | pen = hit + normal; eraser/paint = hit cell (voxels only) |
+| `core/Tools` | pen/eraser/paint/box: `targetCell`, `planEdit` (pure), `applyEdit/revertEdit`, box regions | pen = hit + normal; eraser/paint = hit cell (voxels only); box = `makeBoxRegion` + `planBoxEdits` |
 | `core/History` | stroke-grouped undo/redo stack (limit 200) | `beginStroke/apply/endStroke` |
 | `core/Editor` | owns everything above + tool/color + scene name/dirty; typed events | the only mutable-state owner |
 | `core/Scene` | versioned save format: `encodeScene`/`decodeScene`, RLE, migrations | see `docs/FORMAT.md` |

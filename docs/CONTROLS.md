@@ -6,7 +6,7 @@
 | Orbit | right-drag | option/alt-drag, or alt + scroll | Space + drag |
 | Pan | middle-drag or shift + left-drag | shift-drag | — |
 | Zoom | wheel | two-finger scroll, pinch (arrives as ctrl+wheel) | — |
-| Tools | toolbar | | `1`/`2`/`3` or `B`/`E`/`P`; `Tab` cycles |
+| Tools | toolbar | | `1`/`2`/`3`/`4` or `B`/`E`/`P`/`X`; `Tab` cycles |
 | Color | palette click | | `[` / `]` |
 | Undo / redo | | | `⌘Z` (`Ctrl+Z`) / `⇧⌘Z` or `⌘Y` |
 | Save (no prompt once named) | sidebar `Save` | | `⌘S` |
@@ -17,6 +17,15 @@
 | Toggle voxel outlines | | | `W` |
 | Add color | `+` slot → picker | | |
 | Edit color | double-click slot → picker (Esc/Cancel/click-outside cancels) | | |
+
+**Box tool** (`4` / `X`) draws in two phases:
+1. **Footprint** — press and drag. The cell you press on fixes a horizontal plane; dragging rubber-bands
+   a rectangle on it (the pointer follows that plane, so you can drag out over empty space).
+2. **Height** — release the button. Now moving the pointer raises or lowers the top; the status bar shows
+   the live `w×h×d`. **Click** to place the box, or **Esc** to cancel — cancelling switches back to the pen.
+
+Like the pen, the box only fills empty cells, and the whole box is a single undo step. Switching tools
+mid-draw discards it.
 
 `W` outlines every visible voxel face with a thin dark border. Colors stay solid and lit — it is not a
 wireframe, it just makes individual cells readable in a large block.

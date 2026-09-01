@@ -1,7 +1,7 @@
 import type { Editor } from "../core/Editor";
 import { TOOLS, type ToolName } from "../core/Tools";
 
-const LABELS: Record<ToolName, string> = { pen: "Pen (1)", eraser: "Eraser (2)", paint: "Paint (3)" };
+const LABELS: Record<ToolName, string> = { pen: "Pen (1)", eraser: "Eraser (2)", paint: "Paint (3)", box: "Box (4)" };
 
 export class Toolbar {
   constructor(container: HTMLElement, editor: Editor) {

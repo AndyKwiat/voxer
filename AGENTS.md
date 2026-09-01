@@ -19,7 +19,7 @@ bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see
 - Voxel space is 32³ by default (max 256³), **Y is up, Z is forward**, cells are unit cubes at integer coords.
 - Grid cell value: `0` = empty, `n` = palette index `n-1` (`Palette.toCell/fromCell`).
 - Fixed, growable palette (starts with 32, max 255). Editing a color recolors all voxels using it.
-- Tools: pen, eraser, paint. Undo/redo groups edits per mouse stroke. A held pen drag is locked to one plane —
+- Tools: pen, eraser, paint, box (two-phase: footprint drag → height → click). Undo/redo groups edits per mouse stroke. A held pen drag is locked to one plane —
   orientation from the camera direction at press, offset from the first voxel placed; see `docs/CONTROLS.md`.
 - Black background, grid lines on floor + back wall (z=0) + left wall (x=0), every cell, brighter every 16.
 - `W` toggles thin dark outlines on visible voxel faces (solid colors stay — not a wireframe mode).

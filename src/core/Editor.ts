@@ -3,7 +3,10 @@ import { History } from "./History";
 import { Palette } from "./Palette";
 import { decodeScene, encodeScene, type SceneFile } from "./Scene";
 import type { Hit, Vec3 } from "./Raycast";
-import { dominantAxis, inPlane, planEdit, targetCell, TOOLS, type Axis, type Edit, type ToolName } from "./Tools";
+import {
+  dominantAxis, inPlane, makeBoxRegion, planBoxEdits, planEdit, targetCell, TOOLS,
+  type Axis, type BoxRegion, type Edit, type ToolName,
+} from "./Tools";
 import { VoxelGrid } from "./VoxelGrid";
 
 export type EditorEvents = {
@@ -15,7 +18,18 @@ export type EditorEvents = {
   palette: [];
   /** The current scene's name or unsaved-changes flag changed. */
   scene: [name: string | null, dirty: boolean];
+  /** In-progress box changed (null when there is none). */
+  box: [draft: BoxDraft | null];
 };
+
+/**
+ * A box being drawn. `rect` = dragging the footprint on the plane of the first cell;
+ * `height` = button released, pointer now sets the top.
+ */
+export interface BoxDraft {
+  phase: "rect" | "height";
+  region: BoxRegion;
+}
 
 /** All editor state and operations, independent of DOM and rendering. */
 export class Editor extends Emitter<EditorEvents> {
@@ -28,6 +42,7 @@ export class Editor extends Emitter<EditorEvents> {
   private _anchor: Vec3 | null = null;
   /** Normal of that plane, chosen from the view direction when the stroke began. */
   private _lockAxis: Axis = "y";
+  private _box: { anchor: Vec3; corner: Vec3; topY: number; phase: "rect" | "height" } | null = null;
   private _sceneName: string | null = null;
   private _dirty = false;
   /** Fields from a loaded file this build does not know about; written back on save. */
@@ -47,6 +62,7 @@ export class Editor extends Emitter<EditorEvents> {
   }
   setTool(t: ToolName): void {
     if (t === this._tool) return;
+    if (this._box) this.clearBox(); // leaving the box tool mid-draw discards it
     this._tool = t;
     this.emit("tool", t);
   }
@@ -84,10 +100,84 @@ export class Editor extends Emitter<EditorEvents> {
     return this._tool !== "pen" || !this._anchor || inPlane(this._anchor, c, this._lockAxis);
   }
 
-  /** Cell the current tool would affect for a hit (for previews). */
+  /** Cell the current tool would affect for a hit (for previews). The box preview is its own event. */
   previewCell(hit: Hit | null): Vec3 | null {
+    if (this._box) return null;
     const c = hit ? targetCell(this._tool, hit, this.grid) : null;
     return c && this.inStrokePlane(c) ? c : null;
+  }
+
+  // ---- box tool: click-drag a footprint, release, move to set height, click to commit ----
+
+  /** The box being drawn, or null. */
+  get boxDraft(): BoxDraft | null {
+    if (!this._box) return null;
+    const { anchor, corner, topY, phase } = this._box;
+    return { phase, region: makeBoxRegion(anchor, corner, topY, this.grid.size) };
+  }
+
+  /** The cell the box started from (fixes the footprint plane), or null. */
+  get boxAnchor(): Vec3 | null {
+    return this._box ? { ...this._box.anchor } : null;
+  }
+
+  private emitBox(): void {
+    this.emit("box", this.boxDraft);
+  }
+
+  private clearBox(): void {
+    this._box = null;
+    this.emit("box", null);
+  }
+
+  /** Starts a box at `cell`; its horizontal plane is fixed here for the rest of the draw. */
+  beginBox(cell: Vec3): void {
+    this._box = { anchor: { ...cell }, corner: { ...cell }, topY: cell.y, phase: "rect" };
+    this.emitBox();
+  }
+
+  /** Rect phase: moves the opposite footprint corner (the y of `cell` is ignored). */
+  setBoxCorner(cell: Vec3): void {
+    if (this._box?.phase !== "rect") return;
+    this._box.corner = { x: cell.x, y: this._box.anchor.y, z: cell.z };
+    this.emitBox();
+  }
+
+  /** Footprint done (pointer released): the pointer now drives the height. */
+  beginBoxHeight(): void {
+    if (this._box?.phase !== "rect") return;
+    this._box.phase = "height";
+    this.emitBox();
+  }
+
+  /** Height phase: sets the top cell row (may be below the anchor for a downward box). */
+  setBoxTop(y: number): void {
+    if (this._box?.phase !== "height") return;
+    const next = Math.max(0, Math.min(this.grid.size - 1, Math.round(y)));
+    if (next === this._box.topY) return;
+    this._box.topY = next;
+    this.emitBox();
+  }
+
+  /** Fills the box as one undoable stroke. Returns the edits made (empty if it was fully occupied). */
+  commitBox(): Edit[] {
+    const draft = this.boxDraft;
+    if (!draft) return [];
+    const edits = planBoxEdits(this.grid, draft.region, Palette.toCell(this._color));
+    this.clearBox();
+    if (!edits.length) return [];
+    this.history.beginStroke();
+    for (const e of edits) this.history.apply(e);
+    this.history.endStroke();
+    this.emit("voxels", edits);
+    return edits;
+  }
+
+  /** Escape: throw the box away and fall back to the default tool. */
+  cancelBox(): void {
+    if (!this._box) return;
+    this.clearBox();
+    this.setTool("pen");
   }
 
   /** Applies the current tool at a hit. Returns the edit made, if any. */

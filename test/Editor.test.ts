@@ -13,8 +13,8 @@ describe("Editor", () => {
     const tools: string[] = [], colors: number[] = [];
     ed.on("tool", (t) => tools.push(t));
     ed.on("color", (c) => colors.push(c));
-    ed.setTool("eraser"); ed.setTool("eraser"); ed.nextTool(); ed.nextTool();
-    expect(tools).toEqual(["eraser", "paint", "pen"]);
+    ed.setTool("eraser"); ed.setTool("eraser"); ed.nextTool(); ed.nextTool(); ed.nextTool();
+    expect(tools).toEqual(["eraser", "paint", "box", "pen"]);
     ed.stepColor(-1); ed.stepColor(1); ed.setColor(99);
     expect(colors).toEqual([2, 0]);
     expect(ed.colorHex).toBe("#000000");
@@ -168,5 +168,89 @@ describe("Editor scenes", () => {
     ed.loadScene(JSON.parse(JSON.stringify(seeded().toScene())), "x");
     expect(ed.color).toBe(0);
     expect(ed.colorHex).toBe("#ff0000");
+  });
+});
+
+describe("Editor box tool", () => {
+  const start = (ed: Editor) => { ed.setTool("box"); ed.beginBox({ x: 2, y: 0, z: 2 }); };
+
+  test("rect → height → commit fills one undoable box", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    const drafts: (string | null)[] = [];
+    ed.on("box", (d) => drafts.push(d && `${d.phase} ${d.region.min.y}-${d.region.max.y}`));
+    start(ed);
+    ed.setBoxCorner({ x: 4, y: 99, z: 5 }); // y of the moving corner is ignored
+    expect(ed.boxDraft!.region).toEqual({ min: { x: 2, y: 0, z: 2 }, max: { x: 4, y: 0, z: 5 } });
+    ed.beginBoxHeight();
+    ed.setBoxTop(2);
+    expect(ed.boxDraft!.phase).toBe("height");
+    const edits = ed.commitBox();
+    expect(edits.length).toBe(3 * 3 * 4); // 3 wide × 3 tall × 4 deep
+    expect(ed.grid.count).toBe(36);
+    expect(ed.boxDraft).toBeNull();
+    expect(drafts.at(-1)).toBeNull();
+    expect(ed.undo()).toBe(true); // the whole box is one stroke
+    expect(ed.grid.count).toBe(0);
+  });
+
+  test("height can go downward and is clamped to the grid", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.setTool("box");
+    ed.beginBox({ x: 1, y: 4, z: 1 });
+    ed.beginBoxHeight();
+    ed.setBoxTop(-5);
+    expect(ed.boxDraft!.region).toEqual({ min: { x: 1, y: 0, z: 1 }, max: { x: 1, y: 4, z: 1 } });
+    expect(ed.commitBox().length).toBe(5);
+  });
+
+  test("escape cancels the box and falls back to the pen", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    start(ed);
+    ed.beginBoxHeight();
+    ed.setBoxTop(5);
+    ed.cancelBox();
+    expect(ed.boxDraft).toBeNull();
+    expect(ed.tool).toBe("pen");
+    expect(ed.grid.count).toBe(0);
+  });
+
+  test("switching tools mid-draw discards the box", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    start(ed);
+    ed.setTool("eraser");
+    expect(ed.boxDraft).toBeNull();
+    expect(ed.grid.count).toBe(0);
+  });
+
+  test("phase guards ignore out-of-order input", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.setBoxCorner({ x: 1, y: 1, z: 1 }); // no draft
+    ed.setBoxTop(4);
+    expect(ed.boxDraft).toBeNull();
+    expect(ed.commitBox()).toEqual([]);
+    start(ed);
+    ed.setBoxTop(6); // still in rect phase: ignored
+    expect(ed.boxDraft!.region.max.y).toBe(0);
+  });
+
+  test("committing a fully occupied box makes no edits and no event", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.setRaw(2, 0, 2, 1);
+    ed.setTool("box");
+    ed.beginBox({ x: 2, y: 0, z: 2 });
+    ed.beginBoxHeight();
+    const events: number[] = [];
+    ed.on("voxels", (e) => events.push(e.length));
+    expect(ed.commitBox()).toEqual([]);
+    expect(events).toEqual([]);
+    expect(ed.undo()).toBe(false);
+  });
+
+  test("no cube ghost while a box is being drawn", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    const hit = floor(3, 3);
+    expect(ed.previewCell(hit)).not.toBeNull();
+    start(ed);
+    expect(ed.previewCell(hit)).toBeNull();
   });
 });
