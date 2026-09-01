@@ -5,6 +5,16 @@ import { Palette, hexToRgb } from "../core/Palette";
 
 export const CHUNK = 16;
 
+/**
+ * sRGB → linear for one channel. Three.js treats vertex colors as already being in its linear
+ * working space, but palette hex values are sRGB, so feeding them straight through lifts the
+ * midtones and skews hues (brown #7f3f00 came out orange). Colors set from strings elsewhere
+ * (ghost, grid) go through THREE.Color, which converts for us.
+ */
+export function srgbToLinear(c: number): number {
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
 // face: normal + 4 corners (CCW when viewed from outside)
 const FACES: { n: [number, number, number]; c: [number, number, number][] }[] = [
   { n: [1, 0, 0], c: [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]] },
@@ -45,7 +55,7 @@ export function buildChunkGeometry(grid: VoxelGrid, palette: Palette, cx: number
     let c = colorCache.get(v);
     if (!c) {
       const rgb = hexToRgb(palette.get(Palette.fromCell(v)) ?? "") ?? { r: 255, g: 0, b: 255 };
-      c = [rgb.r / 255, rgb.g / 255, rgb.b / 255];
+      c = [srgbToLinear(rgb.r / 255), srgbToLinear(rgb.g / 255), srgbToLinear(rgb.b / 255)];
       colorCache.set(v, c);
     }
     return c;

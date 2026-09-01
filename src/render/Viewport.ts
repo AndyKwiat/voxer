@@ -31,10 +31,13 @@ export class Viewport {
     this.scene.add(this.gridLines);
     this.voxels = new ChunkedVoxelMesh(editor.grid, editor.palette);
     this.scene.add(this.voxels.group, this.voxels.edgeGroup);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    // Light budget: three's Lambert BRDF divides irradiance by PI, so the intensities below sum to
+    // ~PI on a sun-facing face — it renders at ~95% of the palette color, and the shaded sides sit
+    // around 60-75%. Going brighter clips channels and skews hues (brown reads orange).
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1.35));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.0);
     sun.position.set(0.6, 1, 0.4);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.6);
     fill.position.set(-0.5, 0.3, -1);
     this.scene.add(sun, fill);
 

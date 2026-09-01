@@ -21,6 +21,8 @@ bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see
 - Fixed, growable palette (starts with 32, max 255). Editing a color recolors all voxels using it.
 - Tools: pen, eraser, paint, box (two-phase: footprint drag → height → click). Undo/redo groups edits per mouse stroke. A held pen drag is locked to one plane —
   orientation from the camera direction at press, offset from the first voxel placed; see `docs/CONTROLS.md`.
+- Voxels render at their palette color: vertex colors are converted sRGB→linear and the lights are
+  budgeted so a sun-facing face lands at ~1.0. Don't crank light intensity.
 - Black background, grid lines on floor + back wall (z=0) + left wall (x=0), every cell, brighter every 16.
 - `W` toggles thin dark outlines on visible voxel faces (solid colors stay — not a wireframe mode).
 - Orbit camera, perspective by default, `C` swaps to orthographic (same pose). Controls in `docs/CONTROLS.md`.

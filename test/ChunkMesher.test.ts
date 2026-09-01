@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildChunkEdgeGeometry, buildChunkGeometry, ChunkedVoxelMesh, CHUNK } from "../src/render/ChunkMesher";
+import { buildChunkEdgeGeometry, buildChunkGeometry, ChunkedVoxelMesh, CHUNK, srgbToLinear } from "../src/render/ChunkMesher";
 import { Palette } from "../src/core/Palette";
 import { VoxelGrid } from "../src/core/VoxelGrid";
 
@@ -17,6 +17,24 @@ describe("buildChunkGeometry", () => {
     expect(geo.getAttribute("position").count).toBe(24);
     expect(geo.getIndex()!.count).toBe(36);
     expect(Array.from(geo.getAttribute("color").array.slice(0, 3))).toEqual([0, 1, 0]);
+  });
+
+  test("vertex colors are converted from sRGB to three's linear working space", () => {
+    // Feeding sRGB values straight through lifted midtones and skewed hues (brown read as orange).
+    expect(srgbToLinear(0)).toBe(0);
+    expect(srgbToLinear(1)).toBeCloseTo(1, 6);
+    expect(srgbToLinear(0.5)).toBeCloseTo(0.2140, 4);
+
+    const g = new VoxelGrid(32);
+    const brown = new Palette(["#7f3f00"]);
+    g.set(0, 0, 0, Palette.toCell(0));
+    const c = buildChunkGeometry(g, brown, 0, 0, 0)!.getAttribute("color").array;
+    expect(c[0]).toBeCloseTo(srgbToLinear(0x7f / 255), 6);
+    expect(c[1]).toBeCloseTo(srgbToLinear(0x3f / 255), 6);
+    expect(c[2]).toBe(0);
+    // the green:red ratio of the source survives the round trip back to sRGB
+    const back = (v: number) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+    expect(back(c[1]!) / back(c[0]!)).toBeCloseTo(0x3f / 0x7f, 3);
   });
 
   test("shared faces between neighbours are culled, across chunk borders too", () => {

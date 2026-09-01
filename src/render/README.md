@@ -10,5 +10,11 @@
 Outlines are `LineSegments` in `voxels.edgeGroup`, drawn per exposed face and de-duplicated by corner
 key; the solid material carries a `polygonOffset` so the fills sit a hair behind them and do not z-fight.
 
+Color: palette hex is sRGB, but three treats vertex colors as linear working-space values, so
+`ChunkMesher.srgbToLinear` converts them (skipping this made brown render as orange). Colors set from
+strings via `THREE.Color` (ghost, box preview, grid) are converted by three itself. The light
+intensities in `Viewport` sum to about PI on a sun-facing face — with Lambert's 1/PI that renders a
+voxel at its palette color, with shaded sides around 60-75%. Raise them and channels clip and hues skew.
+
 Conventions: world units = voxels; voxel (x,y,z) occupies [x,x+1)×[y,y+1)×[z,z+1). Call
 `view.invalidate()` after any camera/scene change. Do not raycast Three meshes for picking — use the DDA.
