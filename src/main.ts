@@ -2,6 +2,7 @@ import { Editor } from "./core/Editor";
 import { Palette } from "./core/Palette";
 import { Viewport } from "./render/Viewport";
 import { InputController } from "./ui/InputController";
+import { SceneBar } from "./ui/SceneBar";
 import { PalettePanel } from "./ui/PalettePanel";
 import { StatusBar } from "./ui/StatusBar";
 import { Toolbar } from "./ui/Toolbar";
@@ -13,7 +14,12 @@ const view = new Viewport($("view") as HTMLCanvasElement, editor);
 new Toolbar($("tools"), editor);
 new PalettePanel($("palette"), editor);
 new StatusBar($("status"), editor);
-new InputController(editor, view);
+const scenes = new SceneBar($("scenes"), editor);
+new InputController(editor, view, {
+  save: () => void scenes.save(),
+  saveAs: () => void scenes.saveAs(),
+  open: () => void scenes.open(),
+});
 
 // ?demo places a few voxels so the scene isn't empty (handy for smoke tests).
 if (new URLSearchParams(location.search).has("demo")) {
@@ -23,4 +29,4 @@ if (new URLSearchParams(location.search).has("demo")) {
 }
 
 // Debug handle for the browser console.
-(window as unknown as { voxer: unknown }).voxer = { editor, view };
+(window as unknown as { voxer: unknown }).voxer = { editor, view, scenes };

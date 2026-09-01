@@ -66,6 +66,19 @@ export class Palette {
     return this.colors.length - 1;
   }
 
+  /** Replaces every color at once (scene load); emits a single change. */
+  setAll(colors: readonly string[]): void {
+    if (colors.length === 0) throw new Error("palette must have at least one color");
+    if (colors.length > MAX_COLORS) throw new Error("palette full");
+    const next = colors.map((c) => {
+      const n = normalizeHex(c);
+      if (!n) throw new Error(`invalid color ${c}`);
+      return n;
+    });
+    this.colors = next;
+    this.emit();
+  }
+
   update(i: number, hex: string): void {
     const n = normalizeHex(hex);
     if (!n) throw new Error(`invalid color ${hex}`);

@@ -41,6 +41,19 @@ describe("Palette", () => {
     expect(() => p.add("#000000")).toThrow("palette full");
   });
 
+  test("setAll replaces every color with one notification", () => {
+    const p = new Palette(["#000000", "#ffffff", "#ff0000"]);
+    let n = 0;
+    p.onChange.add(() => n++);
+    p.setAll(["#AABBCC", "#010203"]);
+    expect(p.all()).toEqual(["#aabbcc", "#010203"]);
+    expect(p.length).toBe(2);
+    expect(n).toBe(1);
+    expect(() => p.setAll([])).toThrow();
+    expect(() => p.setAll(["nope"])).toThrow();
+    expect(p.all()).toEqual(["#aabbcc", "#010203"]); // a rejected setAll changes nothing
+  });
+
   test("cell mapping round-trips", () => {
     expect(Palette.toCell(0)).toBe(1);
     expect(Palette.fromCell(Palette.toCell(31))).toBe(31);

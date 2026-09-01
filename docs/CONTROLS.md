@@ -9,6 +9,9 @@
 | Tools | toolbar | | `1`/`2`/`3` or `B`/`E`/`P`; `Tab` cycles |
 | Color | palette click | | `[` / `]` |
 | Undo / redo | | | `⌘Z` (`Ctrl+Z`) / `⇧⌘Z` or `⌘Y` |
+| Save (no prompt once named) | sidebar `Save` | | `⌘S` |
+| Save As… | sidebar `Save As…` | | `⇧⌘S` |
+| Open a scene | sidebar `Open…` | | `⌘O` |
 | Reset view | | | `F` |
 | Toggle grid | | | `G` |
 | Add color | `+` slot → picker | | |

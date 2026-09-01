@@ -35,6 +35,13 @@ export class History {
     if (s && s.length) this.push(s);
   }
 
+  /** Drops all recorded strokes (a freshly loaded scene has nothing to undo back past). */
+  clear(): void {
+    this.current = null;
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+  }
+
   undo(): Edit[] | null {
     this.endStroke();
     const s = this.undoStack.pop();

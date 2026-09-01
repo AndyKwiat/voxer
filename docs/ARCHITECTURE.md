@@ -19,14 +19,16 @@
 | `core/Raycast` | Amanatides–Woo DDA; returns first voxel **or** floor/wall plane hit with face normal | pen on empty space places on floor/walls because those planes are hits with `voxel:false` |
 | `core/Tools` | pen/eraser/paint: `targetCell`, `planEdit` (pure), `applyEdit/revertEdit` | pen = hit + normal; eraser/paint = hit cell (voxels only) |
 | `core/History` | stroke-grouped undo/redo stack (limit 200) | `beginStroke/apply/endStroke` |
-| `core/Editor` | owns everything above + tool/color; typed events | the only mutable-state owner |
+| `core/Editor` | owns everything above + tool/color + scene name/dirty; typed events | the only mutable-state owner |
+| `core/Scene` | versioned save format: `encodeScene`/`decodeScene`, RLE, migrations | see `docs/FORMAT.md` |
 | `render/ChunkMesher` | 16³ chunks, exposed-face meshes with vertex colors, dirty tracking | rebuilt lazily in the render loop |
 | `render/GridLines` | floor + 2 walls, lines split into 16-unit pieces | split works around SwiftShader clipping bug |
 | `render/OrbitCamera` | spherical orbit around a target; rotate/pan/zoom | `F` resets |
 | `render/Viewport` | scene, lights, ghost cube, pick(), render-on-demand loop | subscribes to Editor |
 | `ui/InputController` | all bindings (see CONTROLS.md) | the only place that reads pointer/keyboard |
+| `ui/SceneBar` | Open / Save / Save As buttons + `scenesApi` fetch calls + modal dialogs | scene name lives on `Editor`, not here |
 | `ui/*` | DOM views | stateless; re-render from events |
-| `server/index.ts` | `Bun.serve` static files, traversal-safe | add `/api/*` routes here |
+| `server/index.ts` | `Bun.serve` static files + `/api/scenes` CRUD, traversal-safe | scenes in `saves/` (`VOXER_SCENES` overrides) |
 
 ## Performance model
 - Edits are O(1) + one chunk remesh (≤16³ cells). Palette edits remesh all non-empty chunks.
@@ -37,6 +39,12 @@
 - `three` — scene graph, camera math, WebGL. Writing raw WebGL would cost far more code for no user benefit.
 - dev: `typescript`, `@types/three`, `@types/bun`.
 
-## Future: save/load (planned)
-Serialize `{ size, palette: string[], data: base64|RLE of grid.data }`; load via `editor.setRaw` or a
-bulk `Editor.load()` that emits one `voxels` event covering all changed cells. Endpoints go in `server/index.ts`.
+## Save / load
+`Editor.toScene()` → `Scene.encodeScene` → `PUT /api/scenes/:name`; opening does the reverse through
+`Editor.loadScene(doc, name)`, which validates, replaces grid + palette, drops undo history and emits a
+**single** `voxels` event covering every changed cell (so the viewport remeshes once). The format and its
+compatibility rules are in `docs/FORMAT.md` — read that before adding a field.
+
+`Editor` owns `sceneName` and `dirty`; the `scene` event carries both. "Save" writes to `sceneName` and
+only prompts when there isn't one; "Save As" always prompts. Scenes live in `saves/` on the server, so
+they survive a reload and are not per-browser.

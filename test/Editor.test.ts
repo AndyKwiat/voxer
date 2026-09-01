@@ -101,3 +101,72 @@ describe("Editor", () => {
     expect(n).toBe(2);
   });
 });
+
+describe("Editor scenes", () => {
+  const seeded = () => {
+    const ed = new Editor(new VoxelGrid(8), new Palette(["#ff0000", "#00ff00"]));
+    ed.setRaw(1, 2, 3, Palette.toCell(1));
+    ed.setRaw(4, 0, 0, Palette.toCell(0));
+    return ed;
+  };
+
+  test("saves and reloads a scene into another editor", () => {
+    const src = seeded();
+    const doc = JSON.parse(JSON.stringify(src.toScene()));
+    const dst = new Editor(new VoxelGrid(8));
+    dst.loadScene(doc, "castle");
+    expect(dst.grid.count).toBe(2);
+    expect(dst.grid.get(1, 2, 3)).toBe(Palette.toCell(1));
+    expect(dst.palette.all()).toEqual(["#ff0000", "#00ff00"]);
+    expect(dst.sceneName).toBe("castle");
+    expect(dst.dirty).toBe(false);
+  });
+
+  test("load emits one voxels event covering every changed cell and clears history", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.beginStroke();
+    ed.applyTool(floor(0, 0)); // a voxel the loaded scene does not have
+    ed.endStroke();
+    const batches: number[] = [];
+    ed.on("voxels", (e) => batches.push(e.length));
+    ed.loadScene(JSON.parse(JSON.stringify(seeded().toScene())), "x");
+    expect(batches).toEqual([3]); // 2 added + 1 cleared
+    expect(ed.grid.count).toBe(2);
+    expect(ed.undo()).toBe(false); // history dropped with the old scene
+  });
+
+  test("dirty flag tracks edits and saves", () => {
+    const ed = seeded();
+    expect(ed.dirty).toBe(true);
+    const events: [string | null, boolean][] = [];
+    ed.on("scene", (n, d) => events.push([n, d]));
+    ed.markSaved("hut");
+    expect([ed.sceneName, ed.dirty]).toEqual(["hut", false]);
+    ed.beginStroke();
+    ed.applyTool(floor(6, 6));
+    ed.endStroke();
+    expect(ed.dirty).toBe(true);
+    ed.palette.add("#123456");
+    expect(events).toEqual([["hut", false], ["hut", true]]); // one dirty event, not one per edit
+  });
+
+  test("refuses a scene whose grid size does not match", () => {
+    const doc = seeded().toScene();
+    const ed = new Editor(new VoxelGrid(16));
+    expect(() => ed.loadScene(doc, "x")).toThrow(/8³ but this editor holds a 16³/);
+  });
+
+  test("carries unknown fields from a loaded file back into the next save", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.loadScene({ ...JSON.parse(JSON.stringify(seeded().toScene())), camera: { theta: 2 } }, "x");
+    expect(ed.toScene()["camera"]).toEqual({ theta: 2 });
+  });
+
+  test("keeps the selected color in range when a smaller palette loads", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    ed.setColor(20);
+    ed.loadScene(JSON.parse(JSON.stringify(seeded().toScene())), "x");
+    expect(ed.color).toBe(0);
+    expect(ed.colorHex).toBe("#ff0000");
+  });
+});

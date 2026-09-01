@@ -1,6 +1,7 @@
 import { Emitter } from "./Emitter";
 import { History } from "./History";
 import { Palette } from "./Palette";
+import { decodeScene, encodeScene, type SceneFile } from "./Scene";
 import type { Hit, Vec3 } from "./Raycast";
 import { dominantAxis, inPlane, planEdit, targetCell, TOOLS, type Axis, type Edit, type ToolName } from "./Tools";
 import { VoxelGrid } from "./VoxelGrid";
@@ -12,6 +13,8 @@ export type EditorEvents = {
   color: [index: number];
   /** A palette entry was added or edited. */
   palette: [];
+  /** The current scene's name or unsaved-changes flag changed. */
+  scene: [name: string | null, dirty: boolean];
 };
 
 /** All editor state and operations, independent of DOM and rendering. */
@@ -25,13 +28,18 @@ export class Editor extends Emitter<EditorEvents> {
   private _anchor: Vec3 | null = null;
   /** Normal of that plane, chosen from the view direction when the stroke began. */
   private _lockAxis: Axis = "y";
+  private _sceneName: string | null = null;
+  private _dirty = false;
+  /** Fields from a loaded file this build does not know about; written back on save. */
+  private _extra: Record<string, unknown> = {};
 
   constructor(grid = new VoxelGrid(), palette = new Palette()) {
     super();
     this.grid = grid;
     this.palette = palette;
     this.history = new History(grid);
-    palette.onChange.add(() => this.emit("palette"));
+    palette.onChange.add(() => { this.markDirty(); this.emit("palette"); });
+    this.on("voxels", () => this.markDirty());
   }
 
   get tool(): ToolName {
@@ -116,6 +124,60 @@ export class Editor extends Emitter<EditorEvents> {
     const s = this.history.redo();
     if (s) this.emit("voxels", s);
     return !!s;
+  }
+
+  /** Name the scene was last saved as / loaded from, or null if it has never been named. */
+  get sceneName(): string | null {
+    return this._sceneName;
+  }
+  /** True when there are edits since the last save or load. */
+  get dirty(): boolean {
+    return this._dirty;
+  }
+  private markDirty(): void {
+    if (this._dirty) return;
+    this._dirty = true;
+    this.emit("scene", this._sceneName, true);
+  }
+  /** Records that the current state is what `name` holds on disk. */
+  markSaved(name: string): void {
+    this._sceneName = name;
+    this._dirty = false;
+    this.emit("scene", name, false);
+  }
+
+  /** Serializes the current grid + palette. `extra` fields from the loaded file are carried over. */
+  toScene(): SceneFile {
+    return encodeScene(this.grid, this.palette.all(), this._extra);
+  }
+
+  /**
+   * Replaces grid + palette from a scene document. Emits one `voxels` event covering every changed
+   * cell, drops undo history, and (with a name) marks the scene clean.
+   */
+  loadScene(doc: unknown, name: string | null = null): void {
+    const scene = decodeScene(doc);
+    if (scene.size !== this.grid.size) {
+      throw new Error(`scene is ${scene.size}³ but this editor holds a ${this.grid.size}³ grid`);
+    }
+    this.palette.setAll(scene.palette);
+    const edits: Edit[] = [];
+    const s = this.grid.size;
+    for (let i = 0; i < scene.cells.length; i++) {
+      const after = scene.cells[i]!;
+      const before = this.grid.data[i]!;
+      if (before === after) continue;
+      const x = i % s, z = Math.floor(i / s) % s, y = Math.floor(i / (s * s));
+      this.grid.set(x, y, z, after);
+      edits.push({ x, y, z, before, after });
+    }
+    this._extra = scene.extra;
+    this.history.clear();
+    if (this._color >= this.palette.length) this._color = 0;
+    this.emit("voxels", edits);
+    this._sceneName = name;
+    this._dirty = false;
+    this.emit("scene", name, false);
   }
 
   /** Bulk-sets a cell outside of history (used for demo/loading). */

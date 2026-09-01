@@ -59,4 +59,18 @@ describe("History", () => {
     expect(h.undo()).toBeNull();
     expect(g.get(0, 0, 0)).toBe(1);
   });
+
+  test("clear drops both stacks and any open stroke", () => {
+    const g = new VoxelGrid(8);
+    const h = new History(g);
+    h.apply({ x: 0, y: 0, z: 0, before: EMPTY, after: 1 });
+    h.undo();
+    h.beginStroke();
+    h.apply({ x: 1, y: 0, z: 0, before: EMPTY, after: 1 });
+    h.clear();
+    expect(h.canUndo).toBe(false);
+    expect(h.canRedo).toBe(false);
+    expect(h.undo()).toBeNull();
+    expect(g.get(1, 0, 0)).toBe(1); // clear forgets edits, it does not revert them
+  });
 });

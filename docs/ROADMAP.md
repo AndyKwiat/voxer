@@ -6,10 +6,12 @@
 - Sidebar: tools, scrollable palette with add/edit picker (hex + RGB), status bar
 - Mouse / trackpad / keyboard controls
 - Static Bun server, unit tests, headless browser check
+- Save / load: versioned JSON scenes (`docs/FORMAT.md`), `/api/scenes` endpoints, Open / Save / Save As
 
 ## Next (in rough priority)
-- [ ] Save / load: JSON format (see ARCHITECTURE.md), `GET/PUT /api/scenes/:name`, sidebar buttons
-- [ ] Bulk `Editor.load()` that emits a single `voxels` event
+- [ ] Scene deletion / rename in the Open dialog; warn before discarding unsaved changes
+- [ ] Save the camera in the scene file (additive `camera` field — no version bump)
+- [ ] Load a scene whose `size` differs from the current grid (needs a swappable `Editor.grid`)
 - [ ] Box/line drawing modes for pen & eraser (click-drag rectangles)
 - [ ] Color picker: eyedropper (pick color from a voxel), recent colors
 - [ ] Fill tool (flood fill connected same-color voxels)

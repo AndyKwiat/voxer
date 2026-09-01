@@ -3,18 +3,25 @@ import type { Viewport } from "../render/Viewport";
 
 type DragMode = "rotate" | "pan" | "paint";
 
+/** Actions the controller can trigger but does not own (wired in `main.ts`). */
+export interface InputActions {
+  save?: () => void;
+  saveAs?: () => void;
+  open?: () => void;
+}
+
 /**
  * Mouse / trackpad / keyboard bindings.
  *  Mouse:    left = tool (drag to keep applying), right-drag = orbit, middle or shift+left = pan, wheel = zoom
  *  Trackpad: scroll / pinch = zoom, alt+drag or alt+scroll = orbit, shift+drag = pan
  *  Keys:     1/2/3 or B/E/P tools, Tab next tool, [ ] color, Cmd/Ctrl+Z undo, Shift+Cmd+Z / Cmd+Y redo,
- *            F reset view, G toggle grid, Space+drag orbit
+ *            Cmd+S save, Shift+Cmd+S save as, Cmd+O open, F reset view, G toggle grid, Space+drag orbit
  */
 export class InputController {
   private drag: { mode: DragMode; x: number; y: number } | null = null;
   private spaceHeld = false;
 
-  constructor(private editor: Editor, private view: Viewport) {
+  constructor(private editor: Editor, private view: Viewport, private actions: InputActions = {}) {
     const c = view.canvas;
     c.addEventListener("contextmenu", (e) => e.preventDefault());
     c.addEventListener("pointerdown", (e) => this.onDown(e));
@@ -90,6 +97,8 @@ export class InputController {
     const key = e.key.toLowerCase();
     if (mod && key === "z") { e.preventDefault(); e.shiftKey ? this.editor.redo() : this.editor.undo(); return; }
     if (mod && key === "y") { e.preventDefault(); this.editor.redo(); return; }
+    if (mod && key === "s") { e.preventDefault(); (e.shiftKey ? this.actions.saveAs : this.actions.save)?.(); return; }
+    if (mod && key === "o") { e.preventDefault(); this.actions.open?.(); return; }
     if (mod) return;
     switch (key) {
       case "1": case "b": this.editor.setTool("pen"); break;
