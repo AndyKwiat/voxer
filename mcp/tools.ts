@@ -161,6 +161,27 @@ export const TOOLS: ToolDef[] = [
     description: "Open the app in the user's default browser so they can watch live; it takes over from the headless page with the same scene.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "lint",
+    description:
+      "Check the model for silent mistakes: connected components (specks < speckSize voxels, floating pieces not resting on the floor or the main body), " +
+      "enclosed air pockets, content touching the grid boundary (likely clipped), mirror symmetry across x and z (pivot in mirror-op convention), " +
+      "unused and near-duplicate palette colors. Returns warnings + a one-line summary, then JSON. Flags skip checks on big grids.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        components: { type: "boolean", description: "Components / specks / floating (default true)" },
+        pockets: { type: "boolean", description: "Enclosed air (default true)" },
+        boundary: { type: "boolean", description: "Grid-boundary contact (default true)" },
+        symmetry: { type: "boolean", description: "Mirror symmetry scores (default true)" },
+        palette: { type: "boolean", description: "Unused / near-duplicate colors (default true)" },
+        speckSize: { type: "integer", minimum: 1, description: "Pieces smaller than this are specks (default 4)" },
+        floorY: { type: "integer", description: "Floor height for the floating check (default 0)" },
+        nearColor: { type: "number", minimum: 0, description: "RGB distance for near-duplicate colors (default 20)" },
+        maxList: { type: "integer", minimum: 1, description: "Max entries per list (default 20)" },
+      },
+    },
+  },
 ];
 
 export const INSTRUCTIONS = `Voxer is a voxel editor you control through these tools. Coordinates: integer cells, Y is up, the model's front faces +Z (the "front" view looks from +Z), x grows to the right in the front view. Default grid 32³ (new_scene can resize up to 256).

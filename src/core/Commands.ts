@@ -131,8 +131,8 @@ function fillSolid(d: Draft, lo: Vec3, hi: Vec3, inside: (x: number, y: number, 
 /** Largest out-of-grid region `fillSolid` enumerates exactly; beyond it the clip count is a bbox estimate. */
 const MAX_CLIP_SCAN = 1 << 22;
 
-/** Reports the cells of a solid (`lo..hi`, `filled`) that fall outside the grid as clipped. */
-function countClipped(d: Draft, lo: Vec3, hi: Vec3, filled: (x: number, y: number, z: number) => boolean) {
+/** Reports the cells of a solid (`lo..hi`, `filled`) that fall outside the grid as clipped. Ops that clamp their own loops to the grid (instead of letting `Draft.set` drop writes) call this. */
+export function countClipped(d: Draft, lo: Vec3, hi: Vec3, filled: (x: number, y: number, z: number) => boolean) {
   const s = d.grid.size;
   if (lo.x >= 0 && lo.y >= 0 && lo.z >= 0 && hi.x < s && hi.y < s && hi.z < s) return;
   const ext = (a: number, b: number) => Math.max(0, b - a + 1);

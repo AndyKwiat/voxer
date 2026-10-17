@@ -6,7 +6,7 @@ methods on the live `Editor`/`Viewport`. The page is the single source of truth 
 
 | File | What |
 |---|---|
-| `Api.ts` | `createApi(editor, view, reference)` → `window.voxer.api`. One JSON params object in, JSON out: `info`, `run {ops}` (see `core/Commands.ts`), `get_layer`, `new_scene`, `serialize`/`load`, `undo`/`redo`, `set_palette`, `snapshot` (base64 PNG sheet, `render/Capture.ts`), `set_view`, `reference_info`/`reload_reference`/`sample_reference`, `run_script {code}`. |
+| `Api.ts` | `createApi(editor, view, reference)` → `window.voxer.api`. One JSON params object in, JSON out: `info`, `run {ops}` (see `core/Commands.ts`; returns `{changed, count, summary, report}` — `core/Report.ts`), `get_layer`, `new_scene`, `serialize`/`load`, `undo`/`redo`, `set_palette`, `snapshot` (base64 PNG sheet, `render/Capture.ts`), `set_view`, `reference_info`/`reload_reference`/`sample_reference`, `run_script {code}` (also returns `summary` + `report`; each `op()` call is one report op, loose `set()` writes between them are grouped as `set`), `lint {...options}` (`core/Lint.ts`). |
 | `Bridge.ts` | WebSocket client: answers `rpc` messages, applies `load` (scene sync), tracks `active`, pushes `scene` (debounced) after edits while active, reloads the reference on `reference`. Checks `/api/health` first so a page hosted elsewhere stays quiet. |
 | `Reference.ts` | `ReferenceImage` (sidebar thumbnail; paste/drop an image; synced with `/api/reference`) and pure-ish `sampleImage` (area-average downsample + k-means → `{grid, legend}` for `layer` ops). |
 
@@ -22,3 +22,7 @@ desktop) doesn't load your shell profile (`$BUN`, PATH, `~/.bun/bin`, Homebrew) 
 
 Driving it without MCP: any browser-automation tool can call `window.voxer.api.*` directly.
 Adding an API method: add it to `Api.ts`, a tool in `mcp/tools.ts` + handler in `mcp/server.ts`, and docs.
+
+MCP `draw`, `run_script` and `lint` return text that starts with the human-readable summary (`WARNING:` lines
+first, e.g. `WARNING: op 1 (ellipsoid): 30 cells clipped outside the grid (x 32..33; grid 0..31)`), followed by
+the JSON result on the next line (old fields `changed`, `count`, `bbox`, `colorsUsed` are kept).
