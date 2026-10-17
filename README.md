@@ -10,6 +10,7 @@ bun run dev      # builds, then serves http://localhost:3005 (PORT env to change
 bun test         # unit tests
 bun run typecheck
 bun scripts/browser-check.ts   # headless Chrome smoke test + screenshot
+bun run recipe recipes/examples --figure --export glb   # build recipe files → out/recipes/
 ```
 
 Append `?demo` to the URL to start with a few voxels placed. The scene autosaves (`models/_autosave.json`)
@@ -25,6 +26,11 @@ open http://localhost:3005) to watch live. Tools: `draw` (batched box/ellipsoid/
 `window.voxer.api`.
 
 ### Building models fast (agents)
+- **Recipes (models as code):** a `.js`/`.ts`/`.json` file with `size`, `slots`, `ops` or `build(ctx)`,
+  `anchors`, `variants` and `export`. `bun run recipe <files>` (or MCP `build_recipe`) builds each one in scratch
+  mode and writes scene JSON, variants, meshes, a snapshot sheet and `manifest.json`, with warnings per model
+  (`--strict` fails on them). Ops can use `"slot:roof.dark"` colours and `{op: "stamp", recipe: "house"}`.
+  See `recipes/README.md` and `recipes/examples/`.
 - **Scratch mode:** `VOXER_SCRATCH=1 bun mcp/server.ts` runs a private, in-memory app server. Nothing is
   autosaved to `models/` and your open tab is never taken over. `save_scene {path}` / `load_scene {path}`
   write and read scene files anywhere (both modes). Scripts: `scripts/lib/headless.ts` → `startVoxer({scratch: true})`.

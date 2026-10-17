@@ -11,6 +11,7 @@ bun run dev            # build + serve http://localhost:3005 (PORT env overrides
 bun test               # unit tests (bun:test)
 bun run typecheck      # tsc --noEmit — must be clean
 bun run build          # bundles src/main.ts -> public/main.js (gitignored)
+bun run recipe <files|dirs> [--out out/recipes] [--figure] [--export glb] [--strict] [--no-sheet]   # build recipe files (recipes/README.md)
 bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see docs/TESTING.md)
 VOXER_SCRATCH=1 bun mcp/server.ts   # MCP in scratch mode: private in-memory server, never touches models/ or your tab
 bun mcp/server.ts      # MCP server (stdio) — .mcp.json runs it as "voxer" via mcp/run.sh (finds bun for GUI apps); see src/agent/README.md
@@ -71,6 +72,8 @@ models/              saved scenes (<name>.json); _autosave.json / _reference.* a
 public/index.html    the single page + all CSS
 test/                one file per module
 scripts/             dev tooling (browser-check, lib/chrome.ts headless Chrome, lib/headless.ts in-memory Voxer for scripts)
+recipes/             recipe files (models as code) + examples; built by scripts/build.ts / MCP build_recipe
+                     (shared builder: scripts/lib/recipe-build.ts)
 examples/            example op lists (house.json = a full building from parts ops)
 docs/                ARCHITECTURE, CONTROLS, TESTING, ROADMAP
 .claude/skills/      agent skills

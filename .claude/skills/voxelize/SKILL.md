@@ -12,6 +12,10 @@ the model's **front faces +Z** (the `front` view), x grows to the right in that 
 Run the MCP server in **scratch mode** (`VOXER_SCRATCH=1`) when building throwaway or batch models, so nothing
 lands in the user's `models/` or their open tab; save results with `save_scene {path}` into the project.
 
+For models you'll rebuild, vary or make many of, write a **recipe file** (see `recipes/README.md`,
+`recipes/examples/`) instead of ad-hoc draw calls, then `build_recipe {path}`. Check the per-model warnings, look at
+the returned sheet, edit the file and rebuild.
+
 ## 1. Understand the target
 - Reference: if the user pasted an image in chat you can already see it — also save it with
   `set_reference {path}` if you have a file path; if they pasted it **into the app**, call `get_reference`.

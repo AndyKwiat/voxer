@@ -21,6 +21,7 @@
     (components/specks/floating, air pockets, boundary contact, symmetry, palette)
   - Material slots (shade ramps, `recolor_slot`, `make_variant`) and anchors (door/roof_top/seat…, drawn in
     snapshots); scene format v2
+  - Recipe files as first-class input (`bun run recipe`, MCP `build_recipe`, `recipes/README.md`)
   - Mesh export: greedy-merged mesh with baked AO → GLB / OBJ / JSON (`export_mesh`, sidebar "Export .glb")
 
 ## Next (in rough priority)
@@ -36,6 +37,7 @@
 - [ ] Parts: ops returning metadata from `run` (e.g. roof ridge y); `stamp` by name inside `run_script`; more
       styles (moon doors, eave brackets)
 - [ ] Slots/anchors: anchors in the live viewport; undo for palette/slot edits; `remove_slot`
+- [ ] Recipes: sheets for variants, watch mode (rebuild on save), a `ctx` helper library (ball/disc/line)
 - [ ] Root cause of the rare SwiftShader snapshot stall (not reproducible; retries cover it)
 
 ## Non-goals for now

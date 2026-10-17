@@ -78,6 +78,12 @@ by the MCP `save_scene`/`load_scene` tools and the sidebar New / Save / Load but
 **Scratch mode** (`startServer(port, root, {scratch: true})`, `VOXER_SCRATCH=1` for MCP) keeps scenes in memory
 with no autosave; `server/SceneFile` writes/reads scenes at absolute paths in either mode.
 
+## Recipes
+A recipe file (JS/TS/JSON: size, slots, ops or `build(ctx)`, anchors, variants, export) is replayed by
+`scripts/lib/recipe-build.ts` through a host: a page (`pageHost`: headless scratch Chrome for the CLI, the active
+page for MCP `build_recipe`) or an in-process core `Editor` (`coreHost`, no sheets). `"slot:name.shade"` strings
+and `stamp {recipe}` are resolved outside core; core is unchanged. Each recipe starts from a fresh palette.
+
 ## Why no MCP SDK
 The MCP stdio transport is newline-delimited JSON-RPC with four methods we need (`initialize`,
 `tools/list`, `tools/call`, `ping`); ~60 lines in `mcp/server.ts` beat adding `@modelcontextprotocol/sdk`
