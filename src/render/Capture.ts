@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { boundingBox } from "../core/Commands";
 import type { Editor } from "../core/Editor";
+import { figureSpec, unionBox, withFigure, DEFAULT_FIGURE_HEIGHT } from "./ScaleFigure";
 import type { Viewport } from "./Viewport";
 import { anchorsShown, drawAnchorOverlays, frameWithAnchors } from "./AnchorOverlay";
 import {
@@ -23,6 +24,8 @@ export interface SnapshotOptions {
   columns?: number;
   /** Draw the scene's anchors (`render/AnchorOverlay.ts`). Default: on when there are any. */
   anchors?: boolean;
+  /** Scale figure beside the model (`true` = 8 cells tall, a number = that height). See `ScaleFigure.ts`. */
+  figure?: boolean | number;
 }
 
 export const DEFAULT_VIEWS: ViewName[] = ["front", "left", "top", "iso"];
@@ -44,9 +47,11 @@ export function snapshotSheet(view: Viewport, editor: Editor, opts: SnapshotOpti
   const showAnchors = anchorsShown(opts.anchors, editor.anchors);
   const contentBox: Box3 = opts.frame === "grid" || !bb ? gridBox
     : { min: bb.min, max: { x: bb.max.x + 1, y: bb.max.y + 1, z: bb.max.z + 1 } };
-  const box = showAnchors && contentBox !== gridBox ? frameWithAnchors(contentBox, editor.anchors) : contentBox;
+  const box0 = showAnchors && contentBox !== gridBox ? frameWithAnchors(contentBox, editor.anchors) : contentBox;
+  const fig = opts.figure ? figureSpec(bb ? { min: bb.min, max: { x: bb.max.x + 1, y: bb.max.y + 1, z: bb.max.z + 1 } } : gridBox, typeof opts.figure === "number" ? opts.figure : DEFAULT_FIGURE_HEIGHT, s) : null;
+  const box = fig ? unionBox(box0, fig.box) : box0;
 
-  const tiles: HTMLCanvasElement[] = views.map((name) => (isAxisView(name) ? axisTile(view, AXIS_VIEW_DEFS[name], box, s, px, opts.shading !== "lit") : isoTile(view, name, box, px)));
+  const tiles: HTMLCanvasElement[] = withFigure(view, fig, () => views.map((name) => (isAxisView(name) ? axisTile(view, AXIS_VIEW_DEFS[name], box, s, px, opts.shading !== "lit") : isoTile(view, name, box, px))));
   if (showAnchors) drawAnchorOverlays(tiles, views, editor.anchors, { box, gridSize: s, px, ox: GUTTER_L, oy: TITLE_H });
   if (opts.reference) tiles.push(referenceTile(opts.reference, px));
 

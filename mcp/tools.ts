@@ -161,7 +161,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "snapshot",
     description:
-      "Render a labeled contact sheet (one PNG). Axis views are orthographic with a cell grid and rulers (numbers = cell coordinates); " +
+      "Render a labeled contact sheet (one PNG). If rendering is slow it is retried with smaller tiles / fewer views and the result says what was degraded. Axis views are orthographic with a cell grid and rulers (numbers = cell coordinates); " +
       "iso views are perspective. Default views: front, left, top, iso. Set reference=true to add the reference image as a tile for comparison.",
     inputSchema: {
       type: "object",
@@ -173,6 +173,8 @@ export const TOOLS: ToolDef[] = [
         shading: { type: "string", enum: ["flat", "lit"], description: "Axis views: flat (default) = exact palette colors; lit = scene lighting" },
         columns: { type: "integer", minimum: 1 },
         anchors: { type: "boolean", description: "Draw anchors (cell outline + name + dir arrow; dot in iso views). Default: on when the scene has any" },
+        figure: { type: "boolean", description: "Draw a blocky person (cyan legs, magenta torso, yellow head) beside the model, standing on y=0, to judge door heights and proportions. Snapshot-only, never part of the scene. Default false" },
+        figure_height: { type: "number", minimum: 1, maximum: 256, description: "Scale figure height in cells (default 8; implies figure=true)" },
       },
     },
   },
@@ -225,13 +227,13 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "save_scene",
-    description: "Save the current scene as models/<name>.json.",
-    inputSchema: { type: "object", properties: { name: { type: "string", pattern: "^[A-Za-z0-9][\\w.-]{0,63}$" } }, required: ["name"] },
+    description: "Save the current scene as models/<name>.json, or to an absolute file `path` (e.g. into your own project; parent dirs are created). Give name or path. In scratch mode names stay in memory, so use path to keep the file.",
+    inputSchema: { type: "object", properties: { name: { type: "string", pattern: "^[A-Za-z0-9][\\w.-]{0,63}$" }, path: { type: "string", description: "Absolute path of the .json file to write" } } },
   },
   {
     name: "load_scene",
-    description: "Load models/<name>.json (replaces the current scene, clears undo).",
-    inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    description: "Load models/<name>.json, or a scene JSON file at an absolute `path` (replaces the current scene, clears undo). Give name or path.",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, path: { type: "string", description: "Absolute path of a Voxer scene .json file" } } },
   },
   {
     name: "list_scenes",
@@ -292,12 +294,13 @@ export const TOOLS: ToolDef[] = [
     name: "make_variant",
     description:
       "Make a color variant of the current scene WITHOUT changing it: recolors the given slots ({roof: \"#e8b830\", wall: \"#…\"}). " +
-      "With save_as, saves it as models/<save_as>.json and returns the variant's slot colors; otherwise returns the variant scene JSON.",
+      "With save_as, saves it as models/<save_as>.json (in memory in scratch mode); with path, writes it to that absolute file and returns the variant's slot colors; otherwise returns the variant scene JSON.",
     inputSchema: {
       type: "object",
       properties: {
         slots: { type: "object", additionalProperties: { type: "string" }, description: "slot name → new base #rrggbb" },
         save_as: { type: "string", pattern: "^[A-Za-z0-9][\\w.-]{0,63}$" },
+        path: { type: "string", description: "Absolute path: write the variant scene JSON there instead (works in scratch mode)" },
       },
       required: ["slots"],
     },

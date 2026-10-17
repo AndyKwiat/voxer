@@ -28,20 +28,22 @@ export async function handleRequest(req: Request, root = PUBLIC_DIR): Promise<Re
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 /** `/api/*` routes: agent RPC relay, reference image, scenes. Returns null for non-API paths. */
-export async function handleApi(req: Request, hub: Hub, store: Store): Promise<Response | null> {
+export async function handleApi(req: Request, hub: Hub, store: Store, info: { scratch?: boolean } = {}): Promise<Response | null> {
   const url = new URL(req.url);
   const p = url.pathname;
   if (!p.startsWith("/api/")) return null;
   const m = req.method;
 
-  if (p === "/api/health") return json({ ok: true, app: "voxer" });
+  if (p === "/api/health") return json(info.scratch ? { ok: true, app: "voxer", scratch: true } : { ok: true, app: "voxer" });
   if (p === "/api/agent/status" && m === "GET") return json(hub.status());
 
   if (p === "/api/rpc" && m === "POST") {
     const body = (await req.json().catch(() => null)) as { method?: string; params?: unknown; timeoutMs?: number } | null;
     if (!body?.method) return json({ error: "expected { method, params }" }, 400);
     try {
-      return json({ result: await hub.rpc(body.method, body.params, body.timeoutMs) });
+      // Per-call timeout (ms), clamped to 0.1 s … 10 min; default is the hub's 60 s.
+      const timeoutMs = typeof body.timeoutMs === "number" && body.timeoutMs > 0 ? Math.min(Math.max(body.timeoutMs, 100), 600_000) : undefined;
+      return json({ result: await hub.rpc(body.method, body.params, timeoutMs) });
     } catch (e) {
       return json({ error: (e as Error).message }, e instanceof NoClientError ? 503 : 400);
     }
@@ -83,13 +85,25 @@ export async function handleApi(req: Request, hub: Hub, store: Store): Promise<R
 export interface ServerOptions {
   /** Where scenes / reference / autosave are kept; omitted = in memory (tests). */
   modelsDir?: string;
+  /**
+   * Scratch mode: always in memory (any `modelsDir` is ignored), no autosave, and `/api/health` says
+   * `scratch: true`. For agents building throwaway models; see `isScratch()` and `scripts/lib/headless.ts`.
+   */
+  scratch?: boolean;
+}
+
+/** True if `VOXER_SCRATCH` is set to something other than "" / "0" / "false", or `--scratch` is in argv. */
+export function isScratch(env: Record<string, string | undefined> = process.env, argv: string[] = process.argv): boolean {
+  const v = env.VOXER_SCRATCH?.trim().toLowerCase();
+  return argv.includes("--scratch") || (!!v && v !== "0" && v !== "false" && v !== "no");
 }
 
 /** HTTP + `/agent` WebSocket server. `hub` and `store` are exposed for tests and the MCP server. */
 export function startServer(port = 0, root = PUBLIC_DIR, opts: ServerOptions = {}) {
   const hub = new Hub();
-  const store = new Store(opts.modelsDir);
-  if (opts.modelsDir) {
+  const modelsDir = opts.scratch ? undefined : opts.modelsDir;
+  const store = new Store(modelsDir);
+  if (modelsDir) {
     void store.getAutosave().then((s) => { if (s && !hub.lastScene) hub.lastScene = s; });
     let t: ReturnType<typeof setTimeout> | null = null;
     hub.onScene = (s) => { if (t) clearTimeout(t); t = setTimeout(() => void store.putAutosave(s), 1000); };
@@ -100,7 +114,7 @@ export function startServer(port = 0, root = PUBLIC_DIR, opts: ServerOptions = {
       if (new URL(req.url).pathname === "/agent") {
         return srv.upgrade(req, { data: hub.newClientData() }) ? undefined : new Response("expected a WebSocket", { status: 400 });
       }
-      return (await handleApi(req, hub, store)) ?? handleRequest(req, root);
+      return (await handleApi(req, hub, store, { scratch: opts.scratch })) ?? handleRequest(req, root);
     },
     websocket: {
       open: (ws) => hub.open(ws),
@@ -109,7 +123,7 @@ export function startServer(port = 0, root = PUBLIC_DIR, opts: ServerOptions = {
       maxPayloadLength: 64 * 1024 * 1024, // export_mesh results of large scenes are several MB of base64
     },
   });
-  return Object.assign(server, { hub, store });
+  return Object.assign(server, { hub, store, scratch: !!opts.scratch });
 }
 
 /** Opens `url` in the default browser. Returns false if the platform command failed to start. */
@@ -139,9 +153,12 @@ function bindKeys(url: string): void {
 }
 
 if (import.meta.main) {
-  const server = startServer(Number(process.env.PORT ?? 3005), PUBLIC_DIR, { modelsDir: MODELS_DIR });
+  // Scratch (`--scratch` / VOXER_SCRATCH=1): in-memory, no autosave, and a random port unless PORT is set,
+  // so it never shares a tab (or models/) with the real app on 3005.
+  const scratch = isScratch();
+  const server = startServer(Number(process.env.PORT ?? (scratch ? 0 : 3005)), PUBLIC_DIR, scratch ? { scratch: true } : { modelsDir: MODELS_DIR });
   const url = `http://localhost:${server.port}`;
-  console.log(`voxer running at ${url}`);
+  console.log(scratch ? `voxer (scratch: in memory, nothing saved to models/) running at ${url}` : `voxer running at ${url}`);
   if (process.stdin.isTTY) console.log("press o to open in a browser, q to quit");
   bindKeys(url);
 }

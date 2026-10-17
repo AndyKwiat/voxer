@@ -8,7 +8,8 @@
     "dev": "bun run build && bun --watch server/index.ts",
     "start": "bun run build && bun server/index.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:scratch": "bun run build && bun --watch server/index.ts --scratch"
   },
   "dependencies": {
     "three": "^0.170.0"

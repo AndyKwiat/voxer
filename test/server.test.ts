@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolvePublicPath, startServer } from "../server/index";
+import { isScratch, resolvePublicPath, startServer } from "../server/index";
 
 describe("static server", () => {
   let root: string;
@@ -141,5 +141,72 @@ describe("agent hub + api", () => {
     expect((await fetch(`${base}/api/scenes/house2`, { method: "PUT", body: JSON.stringify(v2) })).status).toBe(200);
     expect(await (await fetch(`${base}/api/scenes/house2`)).json()).toEqual(v2);
     expect((await fetch(`${base}/api/scenes/x`, { method: "PUT", body: JSON.stringify({ ...scene, version: 3 }) })).status).toBe(400);
+  });
+});
+
+describe("scratch mode", () => {
+  let models: string;
+  let server: ReturnType<typeof startServer>;
+  let base: string;
+  const scene = { version: 1, size: 4, palette: ["#000000"], data: "AEA=" };
+
+  beforeAll(() => {
+    models = mkdtempSync(join(tmpdir(), "voxer-models-"));
+    // modelsDir is given on purpose: scratch must ignore it.
+    server = startServer(0, mkdtempSync(join(tmpdir(), "voxer-")), { scratch: true, modelsDir: models });
+    base = `http://localhost:${server.port}`;
+  });
+  afterAll(() => {
+    server.stop(true);
+    rmSync(models, { recursive: true, force: true });
+  });
+
+  test("health reports scratch; isScratch reads env / argv", async () => {
+    expect(await (await fetch(`${base}/api/health`)).json()).toEqual({ ok: true, app: "voxer", scratch: true });
+    expect(server.scratch).toBe(true);
+    expect(isScratch({ VOXER_SCRATCH: "1" }, [])).toBe(true);
+    expect(isScratch({ VOXER_SCRATCH: "0" }, [])).toBe(false);
+    expect(isScratch({}, ["bun", "server/index.ts", "--scratch"])).toBe(true);
+    expect(isScratch({}, [])).toBe(false);
+  });
+
+  test("scenes and autosave never touch the models dir", async () => {
+    expect((await fetch(`${base}/api/scenes/house`, { method: "PUT", body: JSON.stringify(scene) })).status).toBe(200);
+    expect(await (await fetch(`${base}/api/scenes`)).json()).toEqual({ scenes: ["house"] });
+    const png = new Uint8Array([137, 80, 78, 71]);
+    expect((await fetch(`${base}/api/reference`, { method: "PUT", headers: { "content-type": "image/png" }, body: png })).status).toBe(200);
+    const page = await fakePage(base);
+    page.ws.send(JSON.stringify({ type: "scene", scene }));
+    await Bun.sleep(1300); // longer than the real server's 1 s autosave debounce
+    expect(server.hub.lastScene).toEqual(scene as never);
+    expect(readdirSync(models)).toEqual([]);
+    page.ws.close();
+  });
+
+  test("pages on another server (the user's app) can't take over a scratch session", async () => {
+    const user = startServer(0, mkdtempSync(join(tmpdir(), "voxer-")));
+    try {
+      const scratchPage = await fakePage(base, true, () => "scratch");
+      const userPage = await fakePage(`http://localhost:${user.port}`, false, () => "user");
+      expect(scratchPage.last("active").active).toBe(true);
+      expect(userPage.last("active").active).toBe(true);
+      const call = (b: string) => fetch(`${b}/api/rpc`, { method: "POST", body: JSON.stringify({ method: "x" }) }).then((r) => r.json() as any);
+      expect((await call(base)).result).toBe("scratch");
+      expect((await call(`http://localhost:${user.port}`)).result).toBe("user");
+      scratchPage.ws.close(); userPage.ws.close();
+    } finally { user.stop(true); }
+  });
+
+  test("rpc honours a per-call timeoutMs", async () => {
+    const ws = new WebSocket(base.replace("http", "ws") + "/agent");
+    await new Promise((r) => (ws.onopen = r));
+    ws.send(JSON.stringify({ type: "hello", headless: false })); // answers nothing
+    await Bun.sleep(30);
+    const t = performance.now();
+    const r = await fetch(`${base}/api/rpc`, { method: "POST", body: JSON.stringify({ method: "snapshot", timeoutMs: 200 }) });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as any).error).toContain("timed out after 200 ms");
+    expect(performance.now() - t).toBeLessThan(2000);
+    ws.close();
   });
 });
