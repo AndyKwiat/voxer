@@ -89,6 +89,8 @@ type Content = { type: "text"; text: string } | { type: "image"; data: string; m
 const text = (v: unknown): Content[] => [{ type: "text", text: typeof v === "string" ? v : JSON.stringify(v) }];
 /** Scene info without the full palette (scene_info has it). */
 const brief = ({ palette, ...rest }: { palette?: string[] }) => ({ ...rest, paletteSize: palette?.length });
+/** Human-readable write report (warnings first) followed by the JSON result. */
+const withSummary = (summary: unknown, rest: object): Content[] => text(typeof summary === "string" ? `${summary}\n${JSON.stringify(rest)}` : rest);
 const IMAGE_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
 
 const handlers: Record<string, (a: any) => Promise<Content[]>> = {
@@ -99,11 +101,14 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
   },
   new_scene: async (a) => text(brief(await rpc("new_scene", a))),
   async draw(a) {
-    const r = await rpc("run", { ops: a.ops });
+    const { summary, ...r } = await rpc("run", { ops: a.ops });
     const info = await rpc("info");
-    return text({ ...r, bbox: info.bbox, colorsUsed: info.colorsUsed.length });
+    return withSummary(summary, { ...r, bbox: info.bbox, colorsUsed: info.colorsUsed.length });
   },
-  run_script: async (a) => text(await rpc("run_script", { code: a.code })),
+  async run_script(a) {
+    const { summary, ...r } = await rpc("run_script", { code: a.code });
+    return withSummary(summary, r);
+  },
   get_layer: async (a) => text(await rpc("get_layer", a)),
   async snapshot(a) {
     const r = await rpc("snapshot", a);
@@ -197,6 +202,10 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
   set_anchor: async (a) => text(await rpc("set_anchor", a)),
   remove_anchor: async (a) => text(await rpc("remove_anchor", a)),
   list_anchors: async () => text(await rpc("list_anchors")),
+  async lint(a) {
+    const { summary, ...r } = await rpc("lint", a);
+    return withSummary(summary, r);
+  },
 };
 
 // ---------- MCP stdio transport ----------

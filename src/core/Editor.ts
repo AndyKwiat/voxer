@@ -1,4 +1,5 @@
-import { boundingBox, colorCounts, dumpLayer, planOps, type Op } from "./Commands";
+import { boundingBox, colorCounts, dumpLayer, planOps, planOpsReport, type Op } from "./Commands";
+import type { WriteReport } from "./Report";
 import { Emitter } from "./Emitter";
 import { History } from "./History";
 import { Palette } from "./Palette";
@@ -154,7 +155,12 @@ export class Editor extends Emitter<EditorEvents> {
    * (added when missing). Atomic: if any op is malformed nothing is applied. Returns cells changed.
    */
   run(ops: readonly Op[]): number {
-    const edits = planOps(this._grid, ops, this.resolver());
+    return this.runReport(ops).changed;
+  }
+
+  /** `run` that also returns a write report (totals, per-op counts, clipping, same-batch overwrites). */
+  runReport(ops: readonly Op[]): { changed: number; report: WriteReport } {
+    const { edits, report } = planOpsReport(this._grid, ops, this.resolver());
     this.applyEdits(edits);
     // A moving `translate` carries anchors along (see `anchorMoves`); undo/redo of the step moves them back.
     const moves = edits.length ? anchorMoves(this._anchors, ops) : [];
@@ -163,7 +169,7 @@ export class Editor extends Emitter<EditorEvents> {
       this._anchors = { ...this._anchors, ...Object.fromEntries(moves.map((m) => [m.name, m.to])) };
       this.emit("meta");
     }
-    return edits.length;
+    return { changed: edits.length, report };
   }
 
   /** Summary for agents/status: size, count, bounding box, colors in use. */

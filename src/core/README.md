@@ -3,8 +3,10 @@
 | File | What | Key API |
 |---|---|---|
 | `Editor.ts` | **All mutable state** + typed events (`voxels`, `tool`, `color`, `palette`, `reset`, `meta`) | `setTool`, `setColor/stepColor/addColor`, `applyTool(hit)`, `beginStroke(viewDir?)/endStroke`, `strokePlane`, `undo/redo`, `previewCell(hit)`, `run(ops)`, `resolver()`, `applyEdits`, `info`, `dumpLayer`, `serialize/load/newScene`, `setRaw` (no history); slots: `slots`, `listSlots`, `defineSlot`, `adoptSlot`, `recolorSlot`, `makeVariant`; anchors: `anchors`, `setAnchor`, `removeAnchor` |
-| `Commands.ts` | Batch drawing ops planned on a `Draft` overlay → `Edit[]` | `Op` union, `planOps`, `applyOp`, `layerCell` (ASCII slice layout), `dumpLayer`, `boundingBox` |
+| `Commands.ts` | Batch drawing ops planned on a `Draft` overlay → `Edit[]` | `Op` union, `planOps`, `planOpsReport`, `applyOp`, `Draft` (`beginOp`/`report`), `layerCell` (ASCII slice layout), `dumpLayer`, `boundingBox` |
 | `Parts.ts` | Architecture parts library, dispatched from `Commands.applyOp`: `roof` (hip/gable, Chinese curve, shade ramp), `walls`, `window`, `door`, `pillar`, `beam`, `railing`, `stairs`, `arch`, `crenels`, `lantern`, `stamp` (paste SceneData: rot/mirror/recolor/reshade), and `pattern` fills for `box`/`walls` | `PartOp`, `applyPartOp`, `patternFn`, `roofLayout` (layers + ridge y), `stampCells`, `shade`, `roofRamp`, `hash3`, `withHexOf`, `MATERIALS` |
+| `Report.ts` | Write reports for op batches: `Draft.set` feeds a `WriteTracker` (ops bracketed by `Draft.beginOp`), so every op — including new ones — is counted | `WriteReport` (`totals`, `ops[]`, `warnings`, `notes`), `formatReport`, `summarizeReport`; `planOpsReport` / `Editor.runReport` produce it |
+| `Lint.ts` | Model checks on a grid (pure, typed arrays over the padded content bbox; ~0.5 s worst case at 256³) | `lint(grid, paletteHex[], opts)` → components/specks/floating, enclosed air pockets, boundary contact, x/z mirror symmetry, unused/near-duplicate colors, `warnings`, `summary` |
 | `Scene.ts` | Save/sync format (v1; v2 when slots/anchors exist) | `SceneData`, `SCENE_VERSIONS`, `encodeCells/decodeCells` (RLE + base64) |
 | `Slots.ts` | Named material slots = palette shade ramps (pure) | `shade`, `fitFactor`, `deriveRamp`, `uniqueHex`, `planDefineSlot/planAdoptSlot`, `recolorSlot`, `variantScene`, `parseSlots`, `slotSummary` |
 | `Anchors.ts` | Named anchor cells with optional `dir`/`note` (pure) | `Anchor`, `checkAnchor`, `parseAnchors`, `dirVector`, `anchorMoves(anchors, ops)` |
@@ -41,3 +43,11 @@ multiplicative like waldo's colors.js) need a hex, so the resolver passed to `pl
 brick highlights) is a cell hash (`hash3` + `seed`), so results don't depend on op order. `roofLayout`
 reports the layers and the ridge height (`y + layers`). `stamp` only accepts SceneData; saved-scene
 names are resolved by `agent/Api.run`. Example building: `examples/house.json`.
+
+Write reports (`Report.ts`): counts are per cell, not per write call. Per op: `set` (empty → filled), `erased`,
+`recolored`, `noop` (written but unchanged), `clipped` (filled writes at integer coords outside the grid, with
+`clipBox`; solids report the out-of-grid part of the shape, estimated with `clipApprox` past 4M cells; erasing
+outside the grid is not a clip), `invalid` (non-integer coords), and `overwrote` = earlier ops in the same batch
+whose cells this op erased/recolored. Totals compare the grid before the batch with the result (so cells drawn
+then erased in one batch are net no-ops). Warnings: clipping, then erasing what an earlier op drew; recoloring
+an earlier op's cells is a note. A new op gets all of this for free as long as it writes through `Draft.set`.

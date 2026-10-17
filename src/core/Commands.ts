@@ -2,6 +2,7 @@ import type { Vec3 } from "./Raycast";
 import type { Axis, Edit } from "./Tools";
 import { EMPTY, type VoxelGrid } from "./VoxelGrid";
 import { applyPartOp, isPartOp, PART_OP_NAMES, patternBox, type PartOp, type PatternBoxOp } from "./Parts";
+import { WriteTracker, type WriteReport } from "./Report";
 
 /**
  * High-level, batchable drawing operations (the agent / scripting API). Each op is planned into a
@@ -32,10 +33,28 @@ export const OP_NAMES = ["set", "box", "ellipsoid", "cylinder", "line", "layer",
 /** Maps a `Color` to a grid cell value (palette index + 1). */
 export type ColorResolver = (c: Color) => number;
 
-/** Pending changes over a grid; reads see earlier writes. */
+/**
+ * Pending changes over a grid; reads see earlier writes. Every write (and every dropped out-of-grid
+ * write) is counted by `tracker`, per op between `beginOp`s, so any op that writes through `set` is reported.
+ */
 export class Draft {
   private changes = new Map<number, number>();
-  constructor(readonly grid: VoxelGrid) {}
+  readonly tracker: WriteTracker;
+  constructor(readonly grid: VoxelGrid) {
+    this.tracker = new WriteTracker(grid.size, (i) => this.changes.get(i) ?? this.grid.data[i]!);
+  }
+
+  /** Starts counting writes for a new op (ends the previous one); returns its index. */
+  beginOp(name: string, implicit = false): number {
+    return this.tracker.begin(name, implicit);
+  }
+  endOp(): void {
+    this.tracker.end();
+  }
+  /** Write report for everything planned so far (see `Report.ts`). */
+  report(): WriteReport {
+    return this.tracker.report(this.changes, (i) => this.grid.data[i]!);
+  }
 
   get(x: number, y: number, z: number): number {
     if (!this.grid.inBounds(x, y, z)) return EMPTY;
@@ -43,10 +62,13 @@ export class Draft {
     return this.changes.get(i) ?? this.grid.data[i]!;
   }
 
-  /** Writes a cell; out-of-bounds or non-integer coords are ignored. */
+  /** Writes a cell; out-of-bounds or non-integer coords are ignored (counted as invalid / clipped; erasing outside the grid is not a clip). */
   set(x: number, y: number, z: number, v: number): void {
-    if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z) || !this.grid.inBounds(x, y, z)) return;
-    this.changes.set(this.grid.index(x, y, z), v);
+    if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(z)) return this.tracker.invalid();
+    if (!this.grid.inBounds(x, y, z)) { if (v !== EMPTY) this.tracker.clip(x, y, z); return; }
+    const i = this.grid.index(x, y, z);
+    this.tracker.write(i, this.changes.get(i) ?? this.grid.data[i]!);
+    this.changes.set(i, v);
   }
 
   /** Occupied cells (after pending changes) inside an optional inclusive box. */
@@ -105,6 +127,33 @@ function fillSolid(d: Draft, lo: Vec3, hi: Vec3, inside: (x: number, y: number, 
         if (hollow && inside(x + 1, y, z) && inside(x - 1, y, z) && inside(x, y + 1, z) && inside(x, y - 1, z) && inside(x, y, z + 1) && inside(x, y, z - 1)) continue;
         d.set(x, y, z, v);
       }
+  if (v !== EMPTY) countClipped(d, lo, hi, (x, y, z) => inside(x, y, z) &&
+    !(hollow && inside(x + 1, y, z) && inside(x - 1, y, z) && inside(x, y + 1, z) && inside(x, y - 1, z) && inside(x, y, z + 1) && inside(x, y, z - 1)));
+}
+
+/** Largest out-of-grid region `fillSolid` enumerates exactly; beyond it the clip count is a bbox estimate. */
+const MAX_CLIP_SCAN = 1 << 22;
+
+/** Reports the cells of a solid (`lo..hi`, `filled`) that fall outside the grid as clipped. Ops that clamp their own loops to the grid (instead of letting `Draft.set` drop writes) call this. */
+export function countClipped(d: Draft, lo: Vec3, hi: Vec3, filled: (x: number, y: number, z: number) => boolean) {
+  const s = d.grid.size;
+  if (lo.x >= 0 && lo.y >= 0 && lo.z >= 0 && hi.x < s && hi.y < s && hi.z < s) return;
+  const ext = (a: number, b: number) => Math.max(0, b - a + 1);
+  const total = ext(lo.x, hi.x) * ext(lo.y, hi.y) * ext(lo.z, hi.z);
+  if (!total) return;
+  if (total > MAX_CLIP_SCAN) {
+    const inGrid = ext(Math.max(0, lo.x), Math.min(s - 1, hi.x)) * ext(Math.max(0, lo.y), Math.min(s - 1, hi.y)) * ext(Math.max(0, lo.z), Math.min(s - 1, hi.z));
+    if (total > inGrid) d.tracker.clipEstimate(total - inGrid, lo, hi);
+    return;
+  }
+  for (let y = lo.y; y <= hi.y; y++)
+    for (let z = lo.z; z <= hi.z; z++) {
+      const rowIn = y >= 0 && y < s && z >= 0 && z < s;
+      for (let x = lo.x; x <= hi.x; x++) {
+        if (rowIn && x >= 0 && x < s) { x = s - 1; continue; } // skip the in-grid span of this row
+        if (filled(x, y, z)) d.tracker.clip(x, y, z);
+      }
+    }
 }
 
 /** Applies one op to a draft. Throws on malformed input (the whole batch is then discarded). */
@@ -245,13 +294,21 @@ export function layerCell(axis: Axis, index: number, a: number, b: number, r: nu
 }
 
 /** Plans a batch of ops into edits against the current grid (nothing is applied). */
-export function planOps(grid: VoxelGrid, ops: readonly Op[], resolve: ColorResolver): Edit[] {
-  const d = new Draft(grid);
+export function planOps(grid: VoxelGrid, ops: readonly Op[], resolve: ColorResolver, d = new Draft(grid)): Edit[] {
   ops.forEach((op, i) => {
+    d.beginOp(String((op as { op?: string }).op));
     try { applyOp(d, op, resolve); }
     catch (e) { throw new Error(`op ${i} (${(op as { op?: string }).op}): ${(e as Error).message}`); }
   });
+  d.endOp();
   return d.edits();
+}
+
+/** `planOps` plus a write report (counts, clipping, same-batch overwrites; see `Report.ts`). */
+export function planOpsReport(grid: VoxelGrid, ops: readonly Op[], resolve: ColorResolver): { edits: Edit[]; report: WriteReport } {
+  const d = new Draft(grid);
+  const edits = planOps(grid, ops, resolve, d);
+  return { edits, report: d.report() };
 }
 
 /** Inclusive bounding box of occupied cells, or null if empty. */

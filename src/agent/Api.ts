@@ -8,6 +8,8 @@ import type { SceneData } from "../core/Scene";
 import { slotSummary } from "../core/Slots";
 import type { Axis } from "../core/Tools";
 import { EMPTY } from "../core/VoxelGrid";
+import { formatReport } from "../core/Report";
+import { lint, type LintOptions } from "../core/Lint";
 import { canvasToBase64, snapshotSheet } from "../render/Capture";
 import type { Viewport } from "../render/Viewport";
 import { AXIS_VIEW_DEFS, ISO_DIRS, isAxisView, isViewName, VIEW_NAMES, type ViewName } from "../render/Views";
@@ -25,8 +27,8 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
     /** Runs a batch of drawing ops as one undo step. `stamp` ops may name a saved scene (fetched first). */
     run: async (p: { ops: Op[] }) => {
       if (!Array.isArray(p?.ops)) throw new Error("run: expected { ops: [...] }");
-      const changed = editor.run(await resolveSceneNames(p.ops));
-      return { changed, count: editor.grid.count };
+      const { changed, report } = editor.runReport(await resolveSceneNames(p.ops));
+      return { changed, count: editor.grid.count, summary: formatReport(report), report };
     },
 
     get_layer: (p: { axis: Axis; index: number; crop?: { a0: number; a1: number; b0: number; b1: number } }) => {
@@ -94,12 +96,12 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
       const resolve = editor.resolver();
       const get = (x: number, y: number, z: number) => { const v = d.get(x, y, z); return v === EMPTY ? -1 : Palette.fromCell(v); };
       const set = (x: number, y: number, z: number, c: Color | null) => d.set(x, y, z, c === null ? EMPTY : resolve(c));
-      const op = (o: Op) => applyOp(d, o, resolve);
+      const op = (o: Op) => { d.beginOp(String(o?.op)); applyOp(d, o, resolve); d.beginOp("set", true); };
       const fn = new Function("S", "get", "set", "op", `"use strict";\n${p.code}`) as (...a: unknown[]) => unknown;
       const result = fn(editor.grid.size, get, set, op);
-      const edits = d.edits();
+      const edits = d.edits(), report = d.report();
       editor.applyEdits(edits);
-      return { changed: edits.length, count: editor.grid.count, result: result ?? null };
+      return { changed: edits.length, count: editor.grid.count, result: result ?? null, summary: formatReport(report), report };
     },
 
     /** Meshes the scene (greedy, AO baked into vertex colors) and returns the file as base64 + stats. */
@@ -133,6 +135,8 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
     },
     remove_anchor: (p: { name: string }) => ({ removed: editor.removeAnchor(p?.name) }),
     list_anchors: () => editor.anchors,
+    /** Model checks (see `core/Lint.ts`): components/specks/floating, enclosed air, boundary, symmetry, palette. */
+    lint: (p: LintOptions = {}) => lint(editor.grid, editor.palette.all(), p ?? {}),
   };
   return api;
 }
