@@ -11,7 +11,7 @@ Exports `handleRequest`, `resolvePublicPath`, `startServer(port, root)` so tests
 | Route | What |
 |---|---|
 | `GET /api/health` | `{ ok, app: "voxer" }` (the page and MCP server probe it) |
-| `WS /agent` | page ↔ `Hub` (messages: page→`hello`/`result`/`error`/`scene`; hub→`rpc`/`load`/`active`/`reference`) |
+| `WS /agent` | (max message 64 MB, for `export_mesh` results) page ↔ `Hub` (messages: page→`hello`/`result`/`error`/`scene`; hub→`rpc`/`load`/`active`/`reference`) |
 | `GET /api/agent/status` | connected pages, which is active, headless or not |
 | `POST /api/rpc` `{method, params}` | runs `window.voxer.api[method]` in the active page → `{result}`; 503 if no page, 400 on error |
 | `GET /api/scene` | last scene the active page pushed |

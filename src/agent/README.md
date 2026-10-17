@@ -6,7 +6,8 @@ methods on the live `Editor`/`Viewport`. The page is the single source of truth 
 
 | File | What |
 |---|---|
-| `Api.ts` | `createApi(editor, view, reference)` → `window.voxer.api`. One JSON params object in, JSON out: `info`, `run {ops}` (see `core/Commands.ts`), `get_layer`, `new_scene`, `serialize`/`load`, `undo`/`redo`, `set_palette`, `snapshot` (base64 PNG sheet, `render/Capture.ts`), `set_view`, `reference_info`/`reload_reference`/`sample_reference`, `run_script {code}`. |
+| `Api.ts` | `createApi(editor, view, reference)` → `window.voxer.api`. One JSON params object in, JSON out: `info`, `run {ops}` (see `core/Commands.ts`), `get_layer`, `new_scene`, `serialize`/`load`, `undo`/`redo`, `set_palette`, `snapshot` (base64 PNG sheet, `render/Capture.ts`), `set_view`, `reference_info`/`reload_reference`/`sample_reference`, `run_script {code}`, `export_mesh` (see below). |
+| `Export.ts` | `exportSceneMesh` (the `export_mesh` API: `{format: glb\|obj\|json, pivot, scale, ao, merge, remap, colorSpace?, name?}` → `{format, mime, filename, bytes, data: base64, stats: {vertices, triangles, bbox}}`) and `downloadSceneMesh` (browser download, used by the sidebar button). |
 | `Bridge.ts` | WebSocket client: answers `rpc` messages, applies `load` (scene sync), tracks `active`, pushes `scene` (debounced) after edits while active, reloads the reference on `reference`. Checks `/api/health` first so a page hosted elsewhere stays quiet. |
 | `Reference.ts` | `ReferenceImage` (sidebar thumbnail; paste/drop an image; synced with `/api/reference`) and pure-ish `sampleImage` (area-average downsample + k-means → `{grid, legend}` for `layer` ops). |
 
@@ -22,3 +23,8 @@ desktop) doesn't load your shell profile (`$BUN`, PATH, `~/.bun/bin`, Homebrew) 
 
 Driving it without MCP: any browser-automation tool can call `window.voxer.api.*` directly.
 Adding an API method: add it to `Api.ts`, a tool in `mcp/tools.ts` + handler in `mcp/server.ts`, and docs.
+
+Mesh export: `export_mesh` (API and MCP tool) meshes with `core/GreedyMesher` and writes with `core/MeshExport`.
+The MCP tool takes an extra `path`: the MCP server process writes the file there and returns only stats
+(without `path` the base64 file is returned). Large scenes produce several MB of base64, so the app server's
+WebSocket `maxPayloadLength` is 64 MB.

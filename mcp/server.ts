@@ -176,6 +176,14 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
     Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore" });
     return text(`Opened ${url}. The tab becomes the active viewer with the current scene.`);
   },
+  async export_mesh(a) {
+    const { path, ...opts } = a;
+    const r = await rpc("export_mesh", opts);
+    if (!path) return text(r);
+    const file = isAbsolute(path) ? path : resolve(process.cwd(), path);
+    await Bun.write(file, Buffer.from(r.data, "base64"));
+    return text({ written: file, format: r.format, bytes: r.bytes, ...r.stats });
+  },
 };
 
 // ---------- MCP stdio transport ----------

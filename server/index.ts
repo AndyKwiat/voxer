@@ -106,6 +106,7 @@ export function startServer(port = 0, root = PUBLIC_DIR, opts: ServerOptions = {
       open: (ws) => hub.open(ws),
       message: (ws, msg) => hub.message(ws, msg),
       close: (ws) => hub.close(ws),
+      maxPayloadLength: 64 * 1024 * 1024, // export_mesh results of large scenes are several MB of base64
     },
   });
   return Object.assign(server, { hub, store });

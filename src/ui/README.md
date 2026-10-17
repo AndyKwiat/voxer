@@ -9,6 +9,7 @@ All views are stateless and re-render from `Editor` events. Never store selectio
 | `ColorPicker.ts` | `openColorPicker(initial, title) → Promise<hex|null>`; native color input + hex + RGB fields; Esc/Cancel/backdrop cancel. |
 | `Toolbar.ts` | Tool buttons. |
 | `ScenePanel.ts` | New / Save / Load buttons over `/api/scenes` (`models/<name>.json`); small modal dialogs. |
+| `ExportButton.ts` | "Export .glb" (full-width row under New/Save/Load in `#scene`): downloads the scene as `voxer.glb` via `agent/Export.downloadSceneMesh`. |
 | `StatusBar.ts` | `tool · color N · count voxels`. |
 
 Markup and CSS live in `public/index.html` (ids: `view`, `scene`, `tools`, `palette`, `status`, `help`).

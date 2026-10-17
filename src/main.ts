@@ -8,6 +8,7 @@ import { Viewport } from "./render/Viewport";
 import { InputController } from "./ui/InputController";
 import { PalettePanel } from "./ui/PalettePanel";
 import { ScenePanel } from "./ui/ScenePanel";
+import { ExportButton } from "./ui/ExportButton";
 import { StatusBar } from "./ui/StatusBar";
 import { Toolbar } from "./ui/Toolbar";
 
@@ -19,6 +20,7 @@ const editor = new Editor(new VoxelGrid(Number.isInteger(size) && size > 0 && si
 const view = new Viewport($("view") as HTMLCanvasElement, editor);
 new Toolbar($("tools"), editor);
 new ScenePanel($("scene"), editor);
+new ExportButton($("scene"), editor);
 new PalettePanel($("palette"), editor);
 new StatusBar($("status"), editor);
 new InputController(editor, view);

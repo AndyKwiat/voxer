@@ -161,6 +161,27 @@ export const TOOLS: ToolDef[] = [
     description: "Open the app in the user's default browser so they can watch live; it takes over from the headless page with the same scene.",
     inputSchema: { type: "object", properties: {} },
   },
+  {
+    name: "export_mesh",
+    description:
+      "Export the scene as a mesh: greedy-merged exposed faces with per-vertex ambient occlusion baked into vertex colors. " +
+      "glb = glTF 2.0 binary (COLOR_0 linear), obj = OBJ with `v x y z r g b` sRGB vertex colors, json = base64 typed arrays. " +
+      "With `path` the file is written there (absolute, or relative to the MCP server's cwd) and only stats are returned; otherwise the file comes back base64.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: { type: "string", enum: ["glb", "obj", "json"], description: "Default glb" },
+        path: { type: "string", description: "File to write, e.g. /abs/dir/model.glb" },
+        pivot: { type: "string", enum: ["corner", "base", "center"], description: "Origin: base (default) = grid centre x/z at y=0; corner = Voxer cell coords; center = grid centre" },
+        scale: { type: "number", exclusiveMinimum: 0, description: "World units per voxel (default 1)" },
+        ao: { type: "boolean", description: "Bake ambient occlusion + darker bottom faces (default true)" },
+        merge: { type: "boolean", description: "Greedy-merge coplanar faces with equal color and AO (default true; visuals identical)" },
+        remap: { type: "object", additionalProperties: { type: "string" }, description: 'Color substitutions {"#from": "#to"}' },
+        colorSpace: { type: "string", enum: ["linear", "srgb"], description: "json only: vertex color space (default linear)" },
+        name: { type: "string", description: "Mesh/node name in the file (default voxer)" },
+      },
+    },
+  },
 ];
 
 export const INSTRUCTIONS = `Voxer is a voxel editor you control through these tools. Coordinates: integer cells, Y is up, the model's front faces +Z (the "front" view looks from +Z), x grows to the right in the front view. Default grid 32³ (new_scene can resize up to 256).

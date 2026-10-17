@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { applyOp, Draft, type Color, type Op } from "../core/Commands";
 import type { Editor } from "../core/Editor";
+import type { ExportOptions } from "../core/MeshExport";
 import { Palette } from "../core/Palette";
 import type { SceneData } from "../core/Scene";
 import type { Axis } from "../core/Tools";
@@ -8,6 +9,7 @@ import { EMPTY } from "../core/VoxelGrid";
 import { canvasToBase64, snapshotSheet } from "../render/Capture";
 import type { Viewport } from "../render/Viewport";
 import { AXIS_VIEW_DEFS, ISO_DIRS, isAxisView, isViewName, VIEW_NAMES, type ViewName } from "../render/Views";
+import { exportSceneMesh } from "./Export";
 import { sampleImage, type ReferenceImage, type SampleOptions } from "./Reference";
 
 /**
@@ -97,6 +99,9 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
       editor.applyEdits(edits);
       return { changed: edits.length, count: editor.grid.count, result: result ?? null };
     },
+
+    /** Meshes the scene (greedy, AO baked into vertex colors) and returns the file as base64 + stats. */
+    export_mesh: (p: ExportOptions = {}) => exportSceneMesh(editor, p),
   };
   return api;
 }
