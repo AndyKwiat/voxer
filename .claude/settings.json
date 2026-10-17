@@ -6,7 +6,12 @@
       "Bash(bun run build*)",
       "Bash(bun install*)",
       "Bash(bun scripts/browser-check.ts*)",
-      "Read(./scripts/out/**)"
+      "Read(./scripts/out/**)",
+      "Bash(bun mcp/*)",
+      "mcp__voxer__*"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "voxer"
+  ]
 }

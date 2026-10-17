@@ -46,3 +46,26 @@ describe("Palette", () => {
     expect(Palette.fromCell(Palette.toCell(31))).toBe(31);
   });
 });
+
+describe("Palette.resolve", () => {
+  test("indices pass through, hex matches or appends, full palette picks nearest", () => {
+    const p = new Palette(["#000000", "#ff0000"]);
+    expect(p.resolve(1)).toBe(1);
+    expect(() => p.resolve(2)).toThrow();
+    expect(p.resolve("#FF0000")).toBe(1);
+    expect(p.resolve("#00ff00")).toBe(2);
+    expect(() => p.resolve("red")).toThrow(/invalid color/);
+    const full = new Palette(Array.from({ length: MAX_COLORS }, (_, i) => rgbToHex({ r: i, g: 0, b: 0 })));
+    expect(full.resolve("#0a0001")).toBe(10);
+  });
+
+  test("replaceAll swaps the whole list", () => {
+    const p = new Palette(["#000000"]);
+    let n = 0;
+    p.onChange.add(() => n++);
+    p.replaceAll(["#111111", "#222222"]);
+    expect(p.all()).toEqual(["#111111", "#222222"]);
+    expect(n).toBe(1);
+    expect(() => p.replaceAll([])).toThrow();
+  });
+});

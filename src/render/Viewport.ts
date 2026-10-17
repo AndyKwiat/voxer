@@ -11,17 +11,20 @@ export class Viewport {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly orbit: OrbitCamera;
-  readonly voxels: ChunkedVoxelMesh;
+  voxels: ChunkedVoxelMesh;
   private gridLines: THREE.Group;
   private ghost: THREE.Mesh;
   private raycaster = new THREE.Raycaster();
   private needsRender = true;
 
-  constructor(readonly canvas: HTMLCanvasElement, editor: Editor) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  constructor(readonly canvas: HTMLCanvasElement, private editor: Editor) {
+    // alpha so snapshots can render with a transparent background; the live view sets an opaque one.
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.scene.background = new THREE.Color(0x000000);
     this.orbit = new OrbitCamera(1);
+    this.orbit.gridSize = editor.grid.size;
+    this.orbit.reset();
     this.gridLines = makeGridLines(editor.grid.size);
     this.scene.add(this.gridLines);
     this.voxels = new ChunkedVoxelMesh(editor.grid, editor.palette);
@@ -45,6 +48,7 @@ export class Viewport {
       this.invalidate();
     });
     editor.on("palette", () => { this.voxels.markAll(); this.invalidate(); });
+    editor.on("reset", () => this.rebuild());
 
     this.resize();
     window.addEventListener("resize", () => this.resize());
@@ -59,8 +63,62 @@ export class Viewport {
     requestAnimationFrame(loop);
   }
 
+  /** Rebuilds grid lines + meshes after the editor's grid was replaced, and reframes the camera. */
+  private rebuild(): void {
+    const grid = this.editor.grid;
+    this.scene.remove(this.gridLines, this.voxels.group);
+    disposeTree(this.gridLines);
+    this.voxels.dispose();
+    const gridVisible = this.gridLines.visible;
+    this.gridLines = makeGridLines(grid.size);
+    this.gridLines.visible = gridVisible;
+    this.voxels = new ChunkedVoxelMesh(grid, this.editor.palette);
+    this.voxels.markAllCells();
+    this.scene.add(this.gridLines, this.voxels.group);
+    this.ghost.visible = false;
+    this.orbit.gridSize = grid.size;
+    this.orbit.reset();
+    this.invalidate();
+  }
+
+  /**
+   * Renders the scene once with another camera into a new `px`-square 2D canvas, without disturbing
+   * the live view (the live frame is re-rendered before returning, in the same task). With
+   * `transparent`, empty space has alpha 0 so callers can composite their own backdrop.
+   */
+  renderOffscreen(camera: THREE.Camera, px: number, opts: { grid: boolean; transparent: boolean; flat?: boolean }): HTMLCanvasElement {
+    const r = this.renderer;
+    const ratio = r.getPixelRatio(), bg = this.scene.background, colorSpace = r.outputColorSpace;
+    const gridWas = this.gridLines.visible, ghostWas = this.ghost.visible;
+    this.voxels.update();
+    this.gridLines.visible = opts.grid;
+    this.ghost.visible = false;
+    if (opts.transparent) { this.scene.background = null; r.setClearColor(0x000000, 0); }
+    // Flat: unlit, and vertex colors (raw palette bytes / 255) written out unconverted = exact hex colors.
+    if (opts.flat) { this.voxels.setFlat(true); r.outputColorSpace = THREE.LinearSRGBColorSpace; }
+    r.setPixelRatio(1);
+    r.setSize(px, px, false);
+    r.render(this.scene, camera);
+    const out = document.createElement("canvas");
+    out.width = out.height = px;
+    out.getContext("2d")!.drawImage(r.domElement, 0, 0);
+    this.scene.background = bg;
+    r.setClearColor(0x000000, 1);
+    if (opts.flat) { this.voxels.setFlat(false); r.outputColorSpace = colorSpace; }
+    this.gridLines.visible = gridWas;
+    this.ghost.visible = ghostWas;
+    r.setPixelRatio(ratio);
+    this.resize();
+    r.render(this.scene, this.orbit.camera);
+    return out;
+  }
+
   invalidate(): void {
     this.needsRender = true;
+  }
+
+  get gridVisible(): boolean {
+    return this.gridLines.visible;
   }
 
   toggleGrid(): void {
@@ -99,4 +157,14 @@ export class Viewport {
       this.invalidate();
     } else if (wasVisible) this.invalidate();
   }
+}
+
+function disposeTree(o: THREE.Object3D): void {
+  o.traverse((c) => {
+    const m = c as THREE.Mesh;
+    m.geometry?.dispose();
+    const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+    if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+    else mat?.dispose();
+  });
 }

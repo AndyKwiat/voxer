@@ -10,7 +10,9 @@ Read `AGENTS.md` first (canonical, ~2 min). Then only the doc for the layer you'
 | Three.js / meshing     | `src/render/README.md`                 |
 | Sidebar / input        | `src/ui/README.md`, `docs/CONTROLS.md` |
 | Server / save-load     | `server/README.md`                     |
+| Agent control / MCP    | `src/agent/README.md`                  |
 | Tests / verification   | `docs/TESTING.md`                      |
 | What's next            | `docs/ROADMAP.md`                      |
 
-Skills: `/browser-check` (drive the real app headlessly), `/add-tool` (add an editing tool end-to-end).
+Skills: `/browser-check` (drive the real app headlessly), `/add-tool` (add an editing tool end-to-end),
+`/voxelize` (build a model from a reference image + prompt via the `voxer` MCP tools).

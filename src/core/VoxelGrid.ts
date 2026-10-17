@@ -53,6 +53,15 @@ export class VoxelGrid {
     return prev;
   }
 
+  /** Replaces every cell from a buffer in `index` order (length must be size³). */
+  setAll(cells: Uint8Array): void {
+    if (cells.length !== this.data.length) throw new RangeError(`expected ${this.data.length} cells, got ${cells.length}`);
+    this.data.set(cells);
+    let n = 0;
+    for (const v of cells) if (v !== EMPTY) n++;
+    this._count = n;
+  }
+
   erase(x: number, y: number, z: number): number {
     return this.set(x, y, z, EMPTY);
   }

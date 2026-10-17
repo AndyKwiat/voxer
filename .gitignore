@@ -6,3 +6,5 @@ scripts/out/
 *.log
 .env
 .claude/settings.local.json
+# agent/server runtime state (saved scenes in models/*.json are kept)
+models/_*

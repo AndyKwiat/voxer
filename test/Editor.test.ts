@@ -101,3 +101,45 @@ describe("Editor", () => {
     expect(n).toBe(2);
   });
 });
+
+describe("Editor batch ops and scenes", () => {
+  test("run applies a batch as one undo step and one voxels event", () => {
+    const ed = new Editor(new VoxelGrid(8), new Palette(["#000000", "#ffffff"]));
+    const events: number[] = [];
+    ed.on("voxels", (e) => events.push(e.length));
+    expect(ed.run([{ op: "box", min: [0, 0, 0], max: [1, 1, 1], color: "#ff0000" }, { op: "set", voxels: [[5, 5, 5, 1]] }])).toBe(9);
+    expect(ed.palette.length).toBe(3); // hex added
+    expect(ed.grid.get(0, 0, 0)).toBe(Palette.toCell(2));
+    expect(events).toEqual([9]);
+    expect(ed.info().bbox).toEqual({ min: { x: 0, y: 0, z: 0 }, max: { x: 5, y: 5, z: 5 } });
+    ed.undo();
+    expect(ed.grid.count).toBe(0);
+  });
+
+  test("a malformed op leaves the grid untouched", () => {
+    const ed = new Editor(new VoxelGrid(8));
+    expect(() => ed.run([{ op: "box", min: [0, 0, 0], max: [1, 1, 1], color: 0 }, { op: "box", min: [0, 0, 0], max: [1, 1, 1], color: 999 }])).toThrow();
+    expect(ed.grid.count).toBe(0);
+  });
+
+  test("serialize/load round-trips, can change size, emits reset and clears history", () => {
+    const ed = new Editor(new VoxelGrid(8), new Palette(["#000000", "#ffffff"]));
+    ed.run([{ op: "box", min: [1, 1, 1], max: [3, 2, 6], color: 1 }]);
+    const saved = ed.serialize();
+    const other = new Editor(new VoxelGrid(16));
+    let resets = 0;
+    other.on("reset", () => resets++);
+    other.setColor(20);
+    other.load(saved);
+    expect(resets).toBe(1);
+    expect(other.grid.size).toBe(8);
+    expect(other.grid.count).toBe(ed.grid.count);
+    expect(other.grid.data).toEqual(ed.grid.data);
+    expect(other.palette.all()).toEqual(["#000000", "#ffffff"]);
+    expect(other.color).toBe(0);
+    expect(other.history.canUndo).toBe(false);
+    other.newScene(32);
+    expect(other.grid.size).toBe(32);
+    expect(other.grid.count).toBe(0);
+  });
+});

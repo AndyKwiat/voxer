@@ -14,6 +14,8 @@ evaluates each JS expression in the page and saves a screenshot. Defaults: `?dem
 - `voxer.editor`, `voxer.view` — live objects
 - `ev(type, x, y, button?)` — synthetic pointer event on the canvas at canvas-relative px
 - `key(k, opts?)` — synthetic keydown on window
+- `showImage(base64)` — replaces the page with a PNG, e.g. `showImage(voxer.api.snapshot().data)` to
+  screenshot a snapshot sheet
 
 Example:
 ```sh
@@ -25,6 +27,12 @@ Then *look at the screenshot* (Read tool) — it's the only way to catch renderi
 
 Known SwiftShader quirks: drops `gl.LINES` whose endpoint crosses the near plane (hence 16-unit grid pieces);
 `ReadPixels` perf warnings in console are noise.
+
+## Agent / MCP end to end
+`test/server.test.ts` covers the hub with fake WebSocket pages. For the whole chain, drive `bun mcp/server.ts`
+over stdio with `VOXER_PORT` set to a spare port (it starts its own app server + headless Chrome): send
+`initialize`, `tools/list`, then `tools/call` for `new_scene` → `draw` → `snapshot` and decode the image
+content. Note: it writes to `models/` (scenes, `_autosave.json`, `_reference.*`) — clean up test scenes.
 
 ## Definition of done
 `bun test` green, `bun run typecheck` clean, `bun run build` succeeds, and for anything visible a

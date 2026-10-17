@@ -13,6 +13,7 @@
 | Toggle grid | | | `G` |
 | Add color | `+` slot → picker | | |
 | Edit color | double-click slot → picker (Esc/Cancel/click-outside cancels) | | |
+| Set reference image | drop an image file on the page | | `⌘V` paste an image |
 
 Ghost cube shows the target cell for the current tool (red for eraser). It hides when the cell is
 blocked by the pen's plane lock (below).

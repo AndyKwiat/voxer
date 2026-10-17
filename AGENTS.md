@@ -12,6 +12,7 @@ bun test               # unit tests (bun:test)
 bun run typecheck      # tsc --noEmit — must be clean
 bun run build          # bundles src/main.ts -> public/main.js (gitignored)
 bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see docs/TESTING.md)
+bun mcp/server.ts      # MCP server (stdio) — registered in .mcp.json as "voxer"; see src/agent/README.md
 ```
 
 ## Fixed decisions (do not relitigate)
@@ -23,7 +24,9 @@ bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see
   orientation from the camera direction at press, offset from the first voxel placed; see `docs/CONTROLS.md`.
 - Black background, grid lines on floor + back wall (z=0) + left wall (x=0), every cell, brighter every 16.
 - Orbit camera. Controls in `docs/CONTROLS.md`.
-- Server is TypeScript (`Bun.serve`), currently static-only; save/load endpoints will live there.
+- Server is TypeScript (`Bun.serve`): static files + `/api/*` (agent RPC relay, reference image, scenes) + `/agent` WebSocket hub.
+- Agents drive the app through MCP (`mcp/server.ts`) → server hub → the active page's `window.voxer.api`.
+  The **page** owns the scene and renders snapshots; headless Chrome stands in when no tab is open.
 
 ## Architecture in one paragraph
 `src/core/` is pure, DOM-free logic and holds all state in `Editor` (grid, palette, history,
@@ -31,6 +34,8 @@ current tool + color). `Editor` emits typed events (`voxels`, `tool`, `color`, `
 `src/render/Viewport` and `src/ui/*` subscribe to those events; they never own state.
 `src/ui/InputController` turns mouse/trackpad/keyboard into `Editor`/camera calls. Picking is
 an exact DDA raycast through the grid (`core/Raycast.ts`), not Three.js mesh intersection.
+Batch drawing (`core/Commands.ts`: box/ellipsoid/layer/mirror…) goes through `Editor.run(ops)` as one undo
+step. `src/agent/` exposes that plus snapshots and the reference image to agents (`/voxelize` skill).
 Details: `docs/ARCHITECTURE.md`.
 
 ## Rules
@@ -45,14 +50,17 @@ Details: `docs/ARCHITECTURE.md`.
 
 ## Where things are
 ```
-src/main.ts          wiring only (~25 lines)
-src/core/            Editor, VoxelGrid, Palette, Raycast, Tools, History, Emitter
-src/render/          Viewport, ChunkMesher, GridLines, OrbitCamera
+src/main.ts          wiring only
+src/core/            Editor, VoxelGrid, Palette, Raycast, Tools, History, Emitter, Commands, Scene
+src/render/          Viewport, ChunkMesher, GridLines, OrbitCamera, Views, Capture
 src/ui/              InputController, PalettePanel, Toolbar, StatusBar, ColorPicker
-server/index.ts      static server (+ future API)
+src/agent/           Api (window.voxer.api), Bridge (WebSocket to hub), Reference (image + sampling)
+server/              index.ts (static + /api), Hub.ts (agent WebSocket routing), Store.ts (models/)
+mcp/                 MCP stdio server + tool schemas
+models/              saved scenes (<name>.json); _autosave.json / _reference.* are gitignored
 public/index.html    the single page + all CSS
 test/                one file per module
-scripts/             dev tooling (browser-check)
+scripts/             dev tooling (browser-check, lib/chrome.ts headless Chrome launcher)
 docs/                ARCHITECTURE, CONTROLS, TESTING, ROADMAP
 .claude/skills/      agent skills
 ```

@@ -7,7 +7,8 @@ description: Verify a UI/render change in the real app by driving headless Chrom
 
 1. Build first: `bun run build`.
 2. Run `bun scripts/browser-check.ts [--demo] [out.png] "<js expr>" ...`
-   - Helpers in page: `voxer.editor`, `voxer.view`, `ev(type,x,y,button?)` (canvas px), `key(k,{metaKey,shiftKey,...})`.
+   - Helpers in page: `voxer.editor`, `voxer.view`, `voxer.api` (agent API), `ev(type,x,y,button?)` (canvas px),
+     `key(k,{metaKey,shiftKey,...})`, `showImage(base64)` (show e.g. `voxer.api.snapshot().data` for the screenshot).
    - Expressions may be async IIFEs; return a string/number so it prints. Picker actions resolve on a
      microtask — `await new Promise(r=>setTimeout(r,50))` before reading results.
 3. **Read the screenshot** (Read tool on the png path). Check: black background, grid floor + 2 walls,

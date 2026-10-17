@@ -65,6 +65,9 @@ export class ChunkedVoxelMesh {
   private meshes = new Map<number, THREE.Mesh>();
   private dirty = new Set<number>();
   private material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  /** Unlit material: shows exact palette colors (with a linear output color space). */
+  private flatMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
+  private flat = false;
 
   constructor(private grid: VoxelGrid, private palette: Palette) {}
 
@@ -91,6 +94,27 @@ export class ChunkedVoxelMesh {
     for (const k of this.meshes.keys()) this.dirty.add(k);
   }
 
+  /** Marks every chunk of the grid dirty (after a bulk load into a fresh mesh). */
+  markAllCells(): void {
+    const n = Math.ceil(this.grid.size / CHUNK);
+    for (let cy = 0; cy < n; cy++) for (let cz = 0; cz < n; cz++) for (let cx = 0; cx < n; cx++) this.dirty.add(chunkKey(cx, cy, cz));
+  }
+
+  /** Switches every chunk between lit and unlit (flat) shading. */
+  setFlat(flat: boolean): void {
+    this.flat = flat;
+    for (const m of this.meshes.values()) m.material = flat ? this.flatMaterial : this.material;
+  }
+
+  /** Frees GPU resources; the mesh must not be used afterwards. */
+  dispose(): void {
+    for (const m of this.meshes.values()) m.geometry.dispose();
+    this.meshes.clear();
+    this.dirty.clear();
+    this.material.dispose();
+    this.flatMaterial.dispose();
+  }
+
   update(): void {
     for (const k of this.dirty) {
       const cx = k >> 16, cy = (k >> 8) & 255, cz = k & 255;
@@ -102,7 +126,7 @@ export class ChunkedVoxelMesh {
       }
       const geo = buildChunkGeometry(this.grid, this.palette, cx, cy, cz);
       if (geo) {
-        const m = new THREE.Mesh(geo, this.material);
+        const m = new THREE.Mesh(geo, this.flat ? this.flatMaterial : this.material);
         m.frustumCulled = true;
         this.group.add(m);
         this.meshes.set(k, m);

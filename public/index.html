@@ -19,6 +19,13 @@
   .slot.empty { background: #1a1a1a; color: #888; font-size: 20px; border-style: dashed; }
   #help { padding: 10px; border-top: 1px solid #222; color: #888; font-size: 11px; }
   #help kbd { background: #222; border-radius: 3px; padding: 0 4px; color: #ccc; }
+  #reference { display: none; position: relative; padding: 8px 10px; border-top: 1px solid #222; }
+  #reference.has-image { display: block; }
+  #reference img { display: block; max-width: 100%; max-height: 140px; margin: 4px auto 0; border-radius: 3px; }
+  #reference button { position: absolute; top: 4px; right: 6px; background: none; border: none; color: #888; cursor: pointer; font-size: 14px; }
+  .ref-label { color: #888; font-size: 11px; }
+  #agent { padding: 4px 10px; border-top: 1px solid #222; color: #666; font-size: 11px; }
+  #agent.active { color: #6c6; }
   #status { padding: 6px 10px; border-top: 1px solid #222; color: #aaa; font-size: 11px; }
   #view { width: 100%; height: 100%; display: block; }
   .picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
@@ -43,8 +50,10 @@
       <b>Mouse</b>: left = tool · right-drag = orbit · middle/shift-drag = pan · wheel = zoom<br>
       <b>Trackpad</b>: scroll/pinch = zoom · alt/option-drag or alt+scroll = orbit · shift-drag = pan<br>
       <b>Keys</b>: <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> tools · <kbd>[</kbd><kbd>]</kbd> color · <kbd>⌘Z</kbd>/<kbd>⇧⌘Z</kbd> undo/redo · <kbd>F</kbd> reset view · <kbd>G</kbd> grid · <kbd>Space</kbd>+drag orbit<br>
-      Double-click a color to edit it.
+      Double-click a color to edit it. Paste or drop an image to set a reference.
     </div>
+    <div id="reference"></div>
+    <div id="agent"></div>
     <div id="status"></div>
   </div>
   <canvas id="view"></canvas>

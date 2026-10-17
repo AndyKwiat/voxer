@@ -15,11 +15,26 @@ export class OrbitCamera {
     this.reset();
   }
 
+  /** Grid size the default framing is based on (updated when the scene is replaced). */
+  gridSize = 32;
+
   reset(): void {
-    this.target.set(16, 6, 16);
+    const s = this.gridSize;
+    this.target.set(s / 2, s * 0.19, s / 2);
     this.theta = 0.7;
     this.phi = 1.05;
-    this.distance = 70;
+    this.distance = s * 2.2;
+    this.maxDistance = Math.max(1500, s * 8);
+    this.apply();
+  }
+
+  /** Orbits to look at `target` from direction `dir` (target → camera) at `distance`. */
+  lookFrom(dir: { x: number; y: number; z: number }, target = this.target, distance = this.distance): void {
+    const len = Math.hypot(dir.x, dir.y, dir.z) || 1;
+    this.target.copy(target as THREE.Vector3);
+    this.distance = THREE.MathUtils.clamp(distance, this.minDistance, this.maxDistance);
+    this.phi = THREE.MathUtils.clamp(Math.acos(dir.y / len), 0.02, Math.PI - 0.02);
+    this.theta = Math.atan2(dir.x, dir.z);
     this.apply();
   }
 
