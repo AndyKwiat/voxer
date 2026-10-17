@@ -39,7 +39,7 @@ async function serverUp(): Promise<boolean> {
 async function ensureServer(): Promise<void> {
   if (await serverUp()) return;
   log("building bundle and starting app server on", PORT);
-  const build = Bun.spawnSync(["bun", "run", "build"], { cwd: ROOT, stdout: "ignore", stderr: "pipe" });
+  const build = Bun.spawnSync([process.execPath, "run", "build"], { cwd: ROOT, stdout: "ignore", stderr: "pipe" });
   if (build.exitCode !== 0) throw new Error("bun run build failed: " + build.stderr.toString());
   ownServer = startServer(PORT, resolve(ROOT, "public"), { modelsDir: MODELS_DIR });
 }

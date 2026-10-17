@@ -12,7 +12,7 @@ bun test               # unit tests (bun:test)
 bun run typecheck      # tsc --noEmit — must be clean
 bun run build          # bundles src/main.ts -> public/main.js (gitignored)
 bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see docs/TESTING.md)
-bun mcp/server.ts      # MCP server (stdio) — registered in .mcp.json as "voxer"; see src/agent/README.md
+bun mcp/server.ts      # MCP server (stdio) — .mcp.json runs it as "voxer" via mcp/run.sh (finds bun for GUI apps); see src/agent/README.md
 ```
 
 ## Fixed decisions (do not relitigate)

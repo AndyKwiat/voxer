@@ -17,5 +17,8 @@ Active page rules (hub): newest visible page wins; a page that becomes active is
 last scene, so control moves between tabs / from headless to your browser without losing work. With the
 real server, that scene is autosaved to `models/_autosave.json`, so reloading the app keeps your model.
 
+`.mcp.json` starts the server through `mcp/run.sh`, which finds `bun` even when the client (e.g. Claude
+desktop) doesn't load your shell profile (`$BUN`, PATH, `~/.bun/bin`, Homebrew) and puts it on PATH.
+
 Driving it without MCP: any browser-automation tool can call `window.voxer.api.*` directly.
 Adding an API method: add it to `Api.ts`, a tool in `mcp/tools.ts` + handler in `mcp/server.ts`, and docs.
