@@ -2,6 +2,7 @@ import { boundingBox, colorCounts, dumpLayer, planOps, type Op } from "./Command
 import { Emitter } from "./Emitter";
 import { History } from "./History";
 import { Palette } from "./Palette";
+import { withHexOf, type HexAwareResolver } from "./Parts";
 import type { Hit, Vec3 } from "./Raycast";
 import { dominantAxis, inPlane, planEdit, targetCell, TOOLS, type Axis, type Edit, type ToolName } from "./Tools";
 import { decodeCells, encodeCells, SCENE_VERSIONS, type SceneData } from "./Scene";
@@ -153,7 +154,7 @@ export class Editor extends Emitter<EditorEvents> {
    * (added when missing). Atomic: if any op is malformed nothing is applied. Returns cells changed.
    */
   run(ops: readonly Op[]): number {
-    const edits = planOps(this._grid, ops, (c) => Palette.toCell(this.palette.resolve(c)));
+    const edits = planOps(this._grid, ops, this.resolver());
     this.applyEdits(edits);
     // A moving `translate` carries anchors along (see `anchorMoves`); undo/redo of the step moves them back.
     const moves = edits.length ? anchorMoves(this._anchors, ops) : [];
@@ -314,6 +315,11 @@ export class Editor extends Emitter<EditorEvents> {
     this._anchor = null;
     if (this._color >= this.palette.length) this.setColor(0);
     this.emit("reset");
+  }
+
+  /** Color → cell resolver for ops (hex added to the palette); can map cells back to hex for shade ramps. */
+  resolver(): HexAwareResolver {
+    return withHexOf((c) => Palette.toCell(this.palette.resolve(c)), (v) => this.palette.get(Palette.fromCell(v)));
   }
 
   /** Bulk-sets a cell outside of history (used for demo/loading). */

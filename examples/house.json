@@ -1,0 +1,27 @@
+{
+  "name": "home1",
+  "description": "One-storey Chinese village house (rebuild of the waldo 'home1' recipe) using only parts-library ops. Run new_scene {size} then draw {ops}.",
+  "size": 40,
+  "ops": [
+    { "op": "box", "min": [5, 0, 10], "max": [34, 0, 31], "color": "#8a867e" },
+    { "op": "box", "min": [6, 0, 11], "max": [33, 0, 30], "pattern": "noise", "colors": ["#c8c4b8", "#a8a49a"], "density": 0.1 },
+    { "op": "walls", "min": [8, 1, 12], "max": [31, 12, 27], "skirt": true, "posts": true },
+    { "op": "door", "at": [18, 1, 27], "size": [4, 9], "plaque": true },
+    { "op": "window", "at": [10, 4, 27], "size": [4, 5] },
+    { "op": "window", "at": [26, 4, 27], "size": [4, 5], "style": "slats" },
+    { "op": "window", "at": [12, 4, 12], "face": "-z", "size": [4, 5] },
+    { "op": "window", "at": [24, 4, 12], "face": "-z", "size": [4, 5] },
+    { "op": "window", "at": [8, 4, 18], "face": "-x", "size": [4, 5], "style": "slats" },
+    { "op": "window", "at": [31, 4, 18], "face": "+x", "size": [4, 5], "style": "slats" },
+    { "op": "pillar", "at": [[8, 1, 29], [14, 1, 29], [25, 1, 29], [31, 1, 29]], "height": 12 },
+    { "op": "beam", "from": [8, 12, 29], "to": [31, 12, 29] },
+    { "op": "beam", "from": [8, 12, 28], "to": [31, 12, 28] },
+    { "op": "lantern", "at": [[11, 11, 29], [28, 11, 29]] },
+    { "op": "roof", "min": [4, 9], "max": [35, 31], "eave": 0, "y": 13 },
+    { "op": "box", "min": [32, 1, 11], "max": [34, 2, 13], "color": "#b07a44" },
+    { "op": "box", "min": [33, 1, 13], "max": [33, 2, 13], "color": "#5e3a1e" },
+    { "op": "box", "min": [32, 3, 11], "max": [33, 4, 12], "color": "#8a5a32" },
+    { "op": "box", "min": [5, 1, 29], "max": [6, 2, 30], "color": "#2f6fa8" },
+    { "op": "set", "voxels": [[5, 3, 29, "#2f6fa8"], [6, 3, 30, "#2a1f2d"]] }
+  ]
+}

@@ -1,6 +1,7 @@
 import type { Vec3 } from "./Raycast";
 import type { Axis, Edit } from "./Tools";
 import { EMPTY, type VoxelGrid } from "./VoxelGrid";
+import { applyPartOp, isPartOp, PART_OP_NAMES, patternBox, type PartOp, type PatternBoxOp } from "./Parts";
 
 /**
  * High-level, batchable drawing operations (the agent / scripting API). Each op is planned into a
@@ -22,9 +23,11 @@ export type Op =
   | { op: "mirror"; axis: Axis; pivot?: number; source?: "lower" | "upper" }
   | { op: "translate"; offset: V3; min?: V3; max?: V3; copy?: boolean }
   | { op: "replace_color"; from: Color; to: Color | null; min?: V3; max?: V3 }
-  | { op: "clear" };
+  | { op: "clear" }
+  | PatternBoxOp
+  | PartOp;
 
-export const OP_NAMES = ["set", "box", "ellipsoid", "cylinder", "line", "layer", "mirror", "translate", "replace_color", "clear"] as const;
+export const OP_NAMES = ["set", "box", "ellipsoid", "cylinder", "line", "layer", "mirror", "translate", "replace_color", "clear", ...PART_OP_NAMES] as const;
 
 /** Maps a `Color` to a grid cell value (palette index + 1). */
 export type ColorResolver = (c: Color) => number;
@@ -115,6 +118,7 @@ export function applyOp(d: Draft, op: Op, resolve: ColorResolver): void {
       return;
 
     case "box": {
+      if ("pattern" in op && op.pattern !== undefined) return patternBox(d, op, resolve);
       const [lo, hi] = sortedBox(op.min, op.max);
       const v = shapeValue(op, resolve);
       const inBox = (x: number, y: number, z: number) => x >= lo.x && x <= hi.x && y >= lo.y && y <= hi.y && z >= lo.z && z <= hi.z;
@@ -220,6 +224,7 @@ export function applyOp(d: Draft, op: Op, resolve: ColorResolver): void {
       return;
 
     default:
+      if (isPartOp(op)) return applyPartOp(d, op, resolve);
       throw new Error(`unknown op "${(op as { op: unknown }).op}"; expected one of ${OP_NAMES.join(", ")}`);
   }
 }
