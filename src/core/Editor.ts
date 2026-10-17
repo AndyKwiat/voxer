@@ -1,4 +1,5 @@
-import { boundingBox, colorCounts, dumpLayer, planOps, type Op } from "./Commands";
+import { boundingBox, colorCounts, dumpLayer, planOps, planOpsReport, type Op } from "./Commands";
+import type { WriteReport } from "./Report";
 import { Emitter } from "./Emitter";
 import { History } from "./History";
 import { Palette } from "./Palette";
@@ -147,6 +148,13 @@ export class Editor extends Emitter<EditorEvents> {
     const edits = planOps(this._grid, ops, (c) => Palette.toCell(this.palette.resolve(c)));
     this.applyEdits(edits);
     return edits.length;
+  }
+
+  /** `run` that also returns a write report (totals, per-op counts, clipping, same-batch overwrites). */
+  runReport(ops: readonly Op[]): { changed: number; report: WriteReport } {
+    const { edits, report } = planOpsReport(this._grid, ops, (c) => Palette.toCell(this.palette.resolve(c)));
+    this.applyEdits(edits);
+    return { changed: edits.length, report };
   }
 
   /** Summary for agents/status: size, count, bounding box, colors in use. */
