@@ -6,6 +6,7 @@ export class StatusBar {
     editor.on("tool", refresh);
     editor.on("color", refresh);
     editor.on("voxels", refresh);
+    editor.on("reset", refresh);
     refresh();
   }
 }

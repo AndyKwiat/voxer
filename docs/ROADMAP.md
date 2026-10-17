@@ -9,9 +9,9 @@
 - Batch drawing ops (`core/Commands`), `Editor.run/load/serialize/newScene`, RLE scene format
 - Agent control: MCP server (`mcp/`), WebSocket hub, `window.voxer.api`, multi-view snapshot sheets with
   rulers, reference image (paste/drop/file) + sampling, scene save/load + autosave, `/voxelize` skill
+- Sidebar New / Save / Load (`ui/ScenePanel`)
 
 ## Next (in rough priority)
-- [ ] Save / load sidebar buttons (format + `/api/scenes/:name` exist)
 - [ ] Agent: silhouette carving tool (visual hull from front/side/top reference crops)
 - [ ] Agent: reference overlay on the live viewport; per-view reference crops in snapshots
 - [ ] Agent: MCP resource/prompt for the voxelize workflow (works outside Claude Code)

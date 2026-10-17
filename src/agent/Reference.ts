@@ -178,8 +178,8 @@ export class ReferenceImage {
   async setBlob(blob: Blob, persist: boolean): Promise<void> {
     const url = URL.createObjectURL(blob);
     const img = new Image();
-    img.src = url;
-    await img.decode();
+    // onload, not img.decode(): decode() can stay pending forever in a background tab.
+    await new Promise<void>((ok, fail) => { img.onload = () => ok(); img.onerror = () => fail(new Error("could not decode image")); img.src = url; });
     this.set(img);
     if (persist && this.upload) {
       await fetch("/api/reference", { method: "PUT", headers: { "content-type": blob.type || "image/png" }, body: blob }).catch(() => {});

@@ -13,6 +13,7 @@
 | Toggle grid | | | `G` |
 | Add color | `+` slot → picker | | |
 | Edit color | double-click slot → picker (Esc/Cancel/click-outside cancels) | | |
+| New / save / load scene | sidebar buttons (saved to `models/<name>.json`) | | |
 | Set reference image | drop an image file on the page | | `⌘V` paste an image |
 
 Ghost cube shows the target cell for the current tool (red for eraser). It hides when the cell is

@@ -9,6 +9,13 @@
   html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
   #app { display: grid; grid-template-columns: 200px 1fr; height: 100%; }
   #sidebar { display: flex; flex-direction: column; background: #111; border-right: 1px solid #222; min-height: 0; }
+  #scene { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 10px 10px 0; }
+  #scene .tool { text-align: center; }
+  .picker .scene-body { flex-direction: column; align-items: stretch; }
+  .scene-name { width: 100%; background: #111; color: #eee; border: 1px solid #333; border-radius: 4px; padding: 6px; font: inherit; }
+  .scene-err { color: #e66; font-size: 11px; min-height: 14px; }
+  .scene-list { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+  .picker .scene-list button { text-align: left; width: 100%; }
   #tools { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-bottom: 1px solid #222; }
   .tool { background: #222; color: #ddd; border: 1px solid #333; border-radius: 4px; padding: 6px; cursor: pointer; text-align: left; }
   .tool.selected { background: #3b6fd6; border-color: #5b8ff6; color: #fff; }
@@ -44,6 +51,7 @@
 <body>
 <div id="app">
   <div id="sidebar">
+    <div id="scene"></div>
     <div id="tools"></div>
     <div id="palette"></div>
     <div id="help">

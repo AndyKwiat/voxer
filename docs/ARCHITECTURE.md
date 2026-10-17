@@ -61,7 +61,7 @@ Claude ─stdio MCP─► mcp/server.ts ─POST /api/rpc─► server Hub ─WS 
 ## Save/load
 `Editor.serialize()` → `SceneData { version: 1, size, palette, data }` (`data` = RLE + base64 of the
 grid cells); `Editor.load(scene)`. Server: `GET/PUT /api/scenes/:name` → `models/<name>.json`. Used today
-by the MCP `save_scene`/`load_scene` tools; sidebar buttons are still on the roadmap.
+by the MCP `save_scene`/`load_scene` tools and the sidebar New / Save / Load buttons (`ui/ScenePanel`).
 
 ## Why no MCP SDK
 The MCP stdio transport is newline-delimited JSON-RPC with four methods we need (`initialize`,

@@ -8,7 +8,8 @@ All views are stateless and re-render from `Editor` events. Never store selectio
 | `PalettePanel.ts` | Grid of color slots + `+` slot. Click select, dblclick edit → `ColorPicker`. |
 | `ColorPicker.ts` | `openColorPicker(initial, title) → Promise<hex|null>`; native color input + hex + RGB fields; Esc/Cancel/backdrop cancel. |
 | `Toolbar.ts` | Tool buttons. |
+| `ScenePanel.ts` | New / Save / Load buttons over `/api/scenes` (`models/<name>.json`); small modal dialogs. |
 | `StatusBar.ts` | `tool · color N · count voxels`. |
 
-Markup and CSS live in `public/index.html` (ids: `view`, `tools`, `palette`, `status`, `help`).
+Markup and CSS live in `public/index.html` (ids: `view`, `scene`, `tools`, `palette`, `status`, `help`).
 When you change a binding, update the help block in `index.html` and `docs/CONTROLS.md`.

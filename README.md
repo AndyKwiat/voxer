@@ -28,6 +28,7 @@ open http://localhost:3005) to watch live. Tools: `draw` (batched box/ellipsoid/
 - **Mouse**: left = apply tool (drag to keep applying) · right-drag = orbit · middle-drag or shift-drag = pan · wheel = zoom
 - **Trackpad**: two-finger scroll / pinch = zoom · alt/option-drag or alt+scroll = orbit · shift-drag = pan
 - **Keys**: `1`/`2`/`3` (or `B`/`E`/`P`) pen/eraser/paint · `Tab` next tool · `[` `]` prev/next color · `⌘Z` undo · `⇧⌘Z` / `⌘Y` redo · `F` reset view · `G` toggle grid · hold `Space` + drag to orbit
+- **Scenes**: New / Save / Load buttons at the top of the sidebar (files in `models/`).
 - Palette: click to select, double-click to edit (repaints all voxels using it), `+` adds a color.
 
 ## Layout

@@ -7,6 +7,7 @@ import { VoxelGrid } from "./core/VoxelGrid";
 import { Viewport } from "./render/Viewport";
 import { InputController } from "./ui/InputController";
 import { PalettePanel } from "./ui/PalettePanel";
+import { ScenePanel } from "./ui/ScenePanel";
 import { StatusBar } from "./ui/StatusBar";
 import { Toolbar } from "./ui/Toolbar";
 
@@ -17,6 +18,7 @@ const size = Number(params.get("size") ?? 32);
 const editor = new Editor(new VoxelGrid(Number.isInteger(size) && size > 0 && size <= 256 ? size : 32));
 const view = new Viewport($("view") as HTMLCanvasElement, editor);
 new Toolbar($("tools"), editor);
+new ScenePanel($("scene"), editor);
 new PalettePanel($("palette"), editor);
 new StatusBar($("status"), editor);
 new InputController(editor, view);
