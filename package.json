@@ -9,7 +9,8 @@
     "start": "bun run build && bun server/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "dev:scratch": "bun run build && bun --watch server/index.ts --scratch"
+    "dev:scratch": "bun run build && bun --watch server/index.ts --scratch",
+    "recipe": "bun scripts/build.ts"
   },
   "dependencies": {
     "three": "^0.170.0"
