@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { boundingBox } from "../core/Commands";
 import type { Editor } from "../core/Editor";
 import type { Viewport } from "./Viewport";
+import { anchorsShown, drawAnchorOverlays, frameWithAnchors } from "./AnchorOverlay";
 import {
   AXIS_VIEW_DEFS, isAxisView, isoCamera, labelStep, orthoFrame, toScreen,
   type AxisView, type Box3, type IsoViewName, type ViewName,
@@ -20,6 +21,8 @@ export interface SnapshotOptions {
   shading?: "flat" | "lit";
   /** Columns in the sheet. Default: 2 for up to 4 tiles, else 3. */
   columns?: number;
+  /** Draw the scene's anchors (`render/AnchorOverlay.ts`). Default: on when there are any. */
+  anchors?: boolean;
 }
 
 export const DEFAULT_VIEWS: ViewName[] = ["front", "left", "top", "iso"];
@@ -38,10 +41,13 @@ export function snapshotSheet(view: Viewport, editor: Editor, opts: SnapshotOpti
   const s = editor.grid.size;
   const bb = boundingBox(editor.grid);
   const gridBox: Box3 = { min: { x: 0, y: 0, z: 0 }, max: { x: s, y: s, z: s } };
-  const box: Box3 = opts.frame === "grid" || !bb ? gridBox
+  const showAnchors = anchorsShown(opts.anchors, editor.anchors);
+  const contentBox: Box3 = opts.frame === "grid" || !bb ? gridBox
     : { min: bb.min, max: { x: bb.max.x + 1, y: bb.max.y + 1, z: bb.max.z + 1 } };
+  const box = showAnchors && contentBox !== gridBox ? frameWithAnchors(contentBox, editor.anchors) : contentBox;
 
   const tiles: HTMLCanvasElement[] = views.map((name) => (isAxisView(name) ? axisTile(view, AXIS_VIEW_DEFS[name], box, s, px, opts.shading !== "lit") : isoTile(view, name, box, px)));
+  if (showAnchors) drawAnchorOverlays(tiles, views, editor.anchors, { box, gridSize: s, px, ox: GUTTER_L, oy: TITLE_H });
   if (opts.reference) tiles.push(referenceTile(opts.reference, px));
 
   const cols = opts.columns ?? (tiles.length <= 4 ? Math.min(2, tiles.length) : 3);

@@ -8,6 +8,7 @@
 | `OrbitCamera.ts` | Spherical orbit (theta/phi/distance) around `target`; `rotate/pan/zoom/reset/lookFrom`. Default framing scales with `gridSize`. |
 | `Views.ts` | Pure: named views (`front` = camera at +Z … `top` with -Z up, `iso*`), square ortho framing, ruler step, iso camera fit. |
 | `Capture.ts` | `snapshotSheet(view, editor, opts)` → labeled contact-sheet canvas (ortho tiles: flat colors over a 2D cell grid with coordinate rulers; iso tiles: lit perspective; optional reference tile). |
+| `AnchorOverlay.ts` | Anchor markers on snapshot tiles (`opts.anchors`, default on when the scene has anchors): axis views outline the cell + name + `dir` arrow (⊙/⊗ when `dir` is along the view axis); iso views a dot + name + arrow. `frameWithAnchors` grows the content frame to include anchors; `axisMarker` is the pure geometry. |
 
 Conventions: world units = voxels; voxel (x,y,z) occupies [x,x+1)×[y,y+1)×[z,z+1). Call
 `view.invalidate()` after any camera/scene change. On the editor's `reset` event `Viewport` rebuilds
