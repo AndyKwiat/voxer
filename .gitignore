@@ -10,3 +10,5 @@ scripts/out/
 models/_*
 # legacy binary lockfile from Bun < 1.2; bun.lock is the lockfile
 bun.lockb
+# recipe build output (bun run recipe; default --out)
+out/

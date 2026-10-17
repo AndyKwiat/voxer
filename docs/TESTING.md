@@ -38,6 +38,11 @@ the image content; `save_scene {path: "/tmp/…json"}` writes a file. Without sc
 
 Scripts that just need a headless editor: `scripts/lib/headless.ts` (`startVoxer({ scratch: true })`).
 
+## Recipes
+`test/Recipe.test.ts` covers the format and builds `recipes/examples` in-process (`coreHost`, no browser), including
+the CLI with `--no-sheet --strict`. For sheets, run `bun run recipe recipes/examples --figure --export glb --out /tmp/r`
+and Read `/tmp/r/sheets/*.png`; `build_recipe` is checked like the other MCP tools (scratch mode over stdio).
+
 ## Definition of done
 `bun test` green, `bun run typecheck` clean, `bun run build` succeeds, and for anything visible a
 browser-check screenshot was inspected.
