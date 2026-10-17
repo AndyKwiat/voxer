@@ -11,6 +11,8 @@
 | `Tools.ts` | `ToolName = pen \| eraser \| paint`; `Edit {x,y,z,before,after}` | `targetCell`, `planEdit`, `applyEdit`, `revertEdit`, `dominantAxis`, `inPlane` |
 | `History.ts` | undo/redo of edit strokes | `beginStroke/apply/endStroke/undo/redo` |
 | `Emitter.ts` | tiny typed event emitter | `on(event, fn) → off`, `emit` |
+| `GreedyMesher.ts` | Export mesher: exposed faces, per-vertex AO baked into **linear** vertex colors (AO levels 0.5/0.68/0.84/1, bottom faces ×0.8), quads split on the brighter diagonal, greedy merge only where color + all 4 corner AO values match (identical visuals). Same output as Waldo's `voxels.js` | `meshGrid(grid, palette, {pivot, scale, ao, merge, remap, bottomShade}) → MeshData` (typed arrays + bbox), `aoLevel`, `srgbToLinear/linearToSrgb` |
+| `MeshExport.ts` | Hand-written writers: GLB (glTF 2.0, COLOR_0 linear float), OBJ (`v x y z r g b`, sRGB), compact JSON (base64 typed arrays) | `exportMesh(grid, palette, {format, …}) → {bytes, mime, extension, stats}`, `toGLB`, `toOBJ`, `toMeshJSON`, `bytesToBase64` |
 
 Invariants: cell value = palette index + 1; pen never overwrites; eraser/paint only act on voxels;
 a **pen drag is plane-locked**: `beginStroke(viewDir)` picks the lock axis with `dominantAxis` (the
