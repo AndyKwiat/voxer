@@ -18,10 +18,10 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
   const api = {
     info: () => editor.info(),
 
-    /** Runs a batch of drawing ops as one undo step. */
-    run: (p: { ops: Op[] }) => {
+    /** Runs a batch of drawing ops as one undo step. `stamp` ops may name a saved scene (fetched first). */
+    run: async (p: { ops: Op[] }) => {
       if (!Array.isArray(p?.ops)) throw new Error("run: expected { ops: [...] }");
-      const changed = editor.run(p.ops);
+      const changed = editor.run(await resolveSceneNames(p.ops));
       return { changed, count: editor.grid.count };
     },
 
@@ -87,7 +87,7 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
      */
     run_script: (p: { code: string }) => {
       const d = new Draft(editor.grid);
-      const resolve = (c: Color) => Palette.toCell(editor.palette.resolve(c));
+      const resolve = editor.resolver();
       const get = (x: number, y: number, z: number) => { const v = d.get(x, y, z); return v === EMPTY ? -1 : Palette.fromCell(v); };
       const set = (x: number, y: number, z: number, c: Color | null) => d.set(x, y, z, c === null ? EMPTY : resolve(c));
       const op = (o: Op) => applyOp(d, o, resolve);
@@ -105,4 +105,22 @@ export type Api = ReturnType<typeof createApi>;
 
 function checkAxis(a: unknown): asserts a is Axis {
   if (a !== "x" && a !== "y" && a !== "z") throw new Error(`axis must be "x", "y" or "z"`);
+}
+
+/** Replaces `stamp` ops' scene names with the saved scene data from the app server (`/api/scenes/<name>`). */
+async function resolveSceneNames(ops: Op[]): Promise<Op[]> {
+  const cache = new Map<string, Promise<SceneData>>();
+  const fetchScene = (name: string) => {
+    let p = cache.get(name);
+    if (!p) {
+      p = fetch(`/api/scenes/${encodeURIComponent(name)}`, { cache: "no-store" }).then(async (r) => {
+        const body = (await r.json().catch(() => null)) as (SceneData & { error?: string }) | null;
+        if (!r.ok || !body) throw new Error(`stamp: can't load scene "${name}": ${body?.error ?? r.status}`);
+        return body;
+      });
+      cache.set(name, p);
+    }
+    return p;
+  };
+  return Promise.all(ops.map(async (op) => (op?.op === "stamp" && typeof op.scene === "string" ? { ...op, scene: await fetchScene(op.scene) } : op)));
 }

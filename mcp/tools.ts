@@ -5,9 +5,86 @@ const color = { type: ["string", "integer"], description: 'Hex "#rrggbb" (auto-a
 const axis = { type: "string", enum: ["x", "y", "z"] };
 const shape = { color, erase: { type: "boolean", description: "Carve (set empty) instead of filling" } };
 
+// ---- architecture parts library (src/core/Parts.ts) ----
+const vec2 = { type: "array", items: { type: "integer" }, minItems: 2, maxItems: 2 };
+const face = { type: "string", enum: ["+z", "-z", "+x", "-x"], description: 'Outward normal of the wall face (default "+z", the front). Along the face = +x on z faces, +z on x faces' };
+const vec3s = { oneOf: [vec3, { type: "array", items: vec3 }], description: "[x, y, z] or a list of them" };
+const pattern = {
+  pattern: { type: "string", enum: ["brick", "checker", "stripes", "noise"], description: "Fill pattern instead of one color" },
+  colors: { type: "array", items: color, description: "Pattern colors. brick: [brick, mortar, light]; checker/stripes: cycled; noise: [base, speckles...]. Default: shades of `color`" },
+  seed: { type: "integer", description: "Deterministic seed for noise/brick/mottle (default 0)" },
+  density: { type: "number", description: "noise speckle fraction (0.15) / brick light-brick fraction (0.12)" },
+  scale: { type: "integer", description: "checker/stripes cell size (default 1)" },
+};
+const PART_SCHEMAS = [
+  { properties: {
+      op: { const: "roof" }, min: { ...vec2, description: "[x, z] footprint corner (e.g. the walls' min x,z)" }, max: { ...vec2, description: "[x, z] opposite corner" },
+      y: { type: "integer", description: "Base layer y (usually wall top + 1)" },
+      style: { type: "string", enum: ["hip", "gable"], description: "Default hip" },
+      eave: { oneOf: [{ type: "integer" }, vec2], description: "Overhang beyond min/max on each side, number or [x, z] (default 2)" },
+      axis: { type: "string", enum: ["x", "z"], description: "Ridge direction (default: the longer side)" },
+      steps: { type: "array", items: { type: "integer" }, description: "Per-layer inset across the ridge = slope profile, e.g. [2,2,1] (default; then 1s) is the concave Chinese curve, [1,1,1] straight" },
+      hipSteps: { type: "array", items: { type: "integer" }, description: "Per-layer inset at the hip ends (default [2,1,1]); ignored for gable" },
+      maxLayers: { type: "integer", description: "Stop after N layers (skirt / ring roof between storeys; use with ridge:false)" },
+      ridge: { type: "boolean", description: "Ridge with curled ends on top (default true). Ridge y = y + number of layers" },
+      corners: { type: "string", enum: ["upturned", "flat"], description: "Flared eave corners (default upturned)" },
+      pearl: { type: ["boolean", "string", "integer"], description: "Finial on the ridge: true (gold) or a color" },
+      color: { ...color, description: "Base tile color; dark/light/cap/ridge/side shades are derived (default #3a9ab0)" },
+      ramp: { type: "object", properties: { base: color, dark: color, light: color, cap: color, ridge: color, side: color }, description: "Explicit shade overrides" },
+    }, required: ["op", "min", "max", "y"],
+    description: "Stacked-layer tiled roof (hip or gable) with tile channels, hip ridges, eave caps, upturned corners, ridge with end curls. Layers shrink by steps until < 3 wide." },
+  { properties: {
+      op: { const: "walls" }, min: vec3, max: vec3, color: { ...color, description: "Plaster (default #f6e8c8)" }, ...pattern,
+      skirt: { oneOf: [{ type: "boolean" }, { type: "integer" }, { type: "object", properties: { rows: { type: "integer" }, color, dark: color } }], description: "Stone skirt rows at the bottom: true (=2 rows), N rows, or {rows,color,dark}" },
+      top: { type: ["boolean", "string", "integer"], description: "Shadow row under the eaves (default true = color×0.72); false or a color" },
+      posts: { type: ["boolean", "string", "integer"], description: "Corner posts: true (red #d0402e) or a color; top cell darker" },
+      postTop: color,
+      mottle: { type: "number", description: "Fraction of plaster cells speckled darker/lighter (default 0.14; 0 = flat). Deterministic via seed" },
+      floor: { type: ["boolean", "string", "integer"], description: "Fill the interior at min.y: true (stone) or a color" },
+    }, required: ["op", "min", "max"], description: "Room shell (4 walls, 1 thick) from min to max inclusive; interior left empty." },
+  { properties: {
+      op: { const: "window" }, at: { ...vec3, description: "Bottom-left cell of the opening ON the wall surface (min along the face)" }, face,
+      size: { ...vec2, description: "[width, height] of the opening (default [4,5])" },
+      style: { type: "string", enum: ["lattice", "slats", "plain", "round", "open"], description: "Default lattice" },
+      frame: color, sill: { type: ["string", "integer", "null"] }, fill: { ...color, description: "Paper (default #f6e6b8)" }, lattice: color,
+    }, required: ["op", "at"], description: "Window: opening carved in the wall, pane recessed 1 cell, wooden frame around, sill sticking out below." },
+  { properties: {
+      op: { const: "door" }, at: { ...vec3, description: "Bottom-left cell of the opening on the wall surface" }, face,
+      size: { ...vec2, description: "[width, height] (default [4,9])" },
+      color: { ...color, description: "Leaves (default #c8342a)" }, seam: color, studs: { type: ["string", "integer", "null"] },
+      frame: { type: ["string", "integer", "null"], description: "Side posts (default red, gold bands)" }, lintel: { type: ["string", "integer", "null"] },
+      plaque: { type: ["boolean", "string", "integer"], description: "Name plaque above the lintel (true or a color)" }, plaqueText: color,
+    }, required: ["op", "at"], description: "Recessed double door with studs, framed by posts + lintel, optional plaque." },
+  { properties: { op: { const: "pillar" }, at: vec3s, height: { type: "integer", description: "Total cells incl. base and capital (default 8)" }, size: { type: "integer", description: "Square cross-section (default 1)" },
+      color: { ...color, description: "Default red #d0402e" }, base: { type: ["string", "integer", "boolean"], description: "Plinth color (default stone) or false" }, capital: { type: ["string", "integer", "boolean"], description: "Top cell (default color×0.74) or false" } },
+    required: ["op", "at"], description: "Column(s) rising from `at` (bottom cell)." },
+  { properties: { op: { const: "beam" }, from: vec3, to: vec3, color: { ...color, description: "Default blue #2f6fa8" }, dot: { type: ["string", "integer", "null"], description: "Dot color (default gold; null = none)" },
+      every: { type: "integer", description: "Dot every N cells, aligned to world coords (default 3)" }, offset: { type: "integer" } },
+    required: ["op", "from", "to"], description: "Painted beam / band along a line with a dot pattern." },
+  { properties: { op: { const: "railing" }, from: vec3, to: vec3, height: { type: "integer", description: "Default 2: posts below, rail on top" }, color, post: color, every: { type: "integer", description: "Post every N cells (default 2)" } },
+    required: ["op", "from", "to"], description: "Balcony railing: rail at from.y+height-1, posts every N cells below it." },
+  { properties: { op: { const: "stairs" }, at: { ...vec3, description: "Front-left cell of the lowest step (min along the face)" }, face: { ...face, description: "Direction the stairs face (they climb away from it)" },
+      steps: { type: "integer", description: "Default 3" }, width: { type: "integer", description: "Default 3" }, rise: { type: "integer" }, run: { type: "integer", description: "Tread depth (default 1)" },
+      color, edge: { ...color, description: "Tread nosing color" }, solid: { type: "boolean", description: "Fill under the steps (default true)" } },
+    required: ["op", "at"], description: "Staircase." },
+  { properties: { op: { const: "arch" }, min: vec3, max: vec3, axis: { type: "string", enum: ["x", "z"], description: "Passage direction (default z)" }, color: { ...color, description: "Fill instead of carving" } },
+    required: ["op", "min", "max"], description: "Carves an arched opening/tunnel: straight sides with a round crown filling the box's top half-width." },
+  { properties: { op: { const: "crenels" }, min: vec3, max: vec3, color, every: { type: "integer", description: "Period (default 2)" }, width: { type: "integer", description: "Merlon width (default 1)" },
+      sides: { type: "array", items: face } },
+    required: ["op", "min", "max"], description: "Battlements around the rectangle min..max (x,z); y range = merlon height. Put min.y = wall top + 1." },
+  { properties: { op: { const: "lantern" }, at: { ...vec3s, description: "Hook cell; the lantern hangs below it" }, size: { type: "integer", description: "Body cells (default 2)" }, color, cap: color, tassel: color },
+    required: ["op", "at"], description: "Hanging lantern(s)." },
+  { properties: { op: { const: "stamp" }, scene: { type: ["object", "string"], description: "Saved scene name (models/<name>.json) or SceneData {version,size,palette,data}" },
+      at: { ...vec3, description: "Where the min corner lands (default [0,0,0])" }, rot: { type: "integer", enum: [0, 1, 2, 3], description: "Quarter turns about Y; 1 turns the front (+z) to face +x" },
+      mirror: { type: "string", enum: ["x", "z"], description: "Flip before rotating" }, recolor: { type: "object", additionalProperties: { type: ["string", "null"] }, description: '{"#from": "#to" | null (drop)}' },
+      anchor: { type: "string", enum: ["bbox", "origin"], description: "bbox (default): the scene's occupied bounding box is placed at `at`; origin: its whole grid" },
+      crop: { type: "object", properties: { min: vec3, max: vec3 }, description: "Only source cells inside this box" } },
+    required: ["op", "scene"], description: "Copy another scene's voxels into this one (colors merge into the palette)." },
+];
+
 const OP_SCHEMAS = [
-  { properties: { op: { const: "box" }, min: vec3, max: vec3, ...shape, hollow: { type: "boolean" } }, required: ["op", "min", "max"],
-    description: "Axis-aligned box, inclusive bounds." },
+  { properties: { op: { const: "box" }, min: vec3, max: vec3, ...shape, hollow: { type: "boolean" }, ...pattern, axis: { ...axis, description: "pattern stripes: axis the bands advance along (default y)" } }, required: ["op", "min", "max"],
+    description: "Axis-aligned box, inclusive bounds. With pattern (brick/checker/stripes/noise) + colors (or color for an auto ramp) it is filled with that pattern." },
   { properties: { op: { const: "ellipsoid" }, center: vec3, radius: { oneOf: [{ type: "number" }, vec3], description: "Number (sphere) or [rx, ry, rz]; diameter = 2r+1 cells" }, ...shape, hollow: { type: "boolean" } },
     required: ["op", "center", "radius"], description: "Sphere / ellipsoid centered on a cell." },
   { properties: { op: { const: "cylinder" }, base: vec3, radius: { type: "number" }, height: { type: "integer", description: "Cells along axis from base (negative = downward)" }, axis, ...shape, hollow: { type: "boolean" } },
@@ -32,6 +109,7 @@ const OP_SCHEMAS = [
   { properties: { op: { const: "replace_color" }, from: color, to: { type: ["string", "integer", "null"] }, min: vec3, max: vec3 }, required: ["op", "from", "to"],
     description: "Recolor voxels of one color (optionally inside a box); to=null erases them." },
   { properties: { op: { const: "clear" } }, required: ["op"], description: "Erase everything." },
+  ...PART_SCHEMAS,
 ].map((s) => ({ type: "object", ...s }));
 
 const views = { type: "array", items: { type: "string", enum: ["front", "back", "left", "right", "top", "bottom", "iso", "iso_left", "iso_back"] } };
@@ -58,7 +136,9 @@ export const TOOLS: ToolDef[] = [
     description:
       "Apply a batch of drawing ops as ONE undo step (atomic: any bad op aborts the batch). Later ops see earlier ones. " +
       "Coordinates are integer cells, Y up, front faces +Z; out-of-grid cells are clipped. Prefer few large batches. " +
-      "Ops: box, ellipsoid, cylinder, line, layer (ASCII slices — the best way to paint detail), set, mirror, translate, replace_color, clear.",
+      "Ops: box, ellipsoid, cylinder, line, layer (ASCII slices — the best way to paint detail), set, mirror, translate, replace_color, clear. " +
+      "Parts library (buildings in ~10 ops; sensible defaults, colors auto-shaded): roof (hip/gable, Chinese curve), walls (room shell, skirt, posts, mottle), " +
+      "window, door, pillar, beam, railing, stairs, arch (carve), crenels, lantern, stamp (paste a saved scene, rotate/mirror/recolor); box also takes pattern: brick|checker|stripes|noise.",
     inputSchema: { type: "object", properties: { ops: { type: "array", items: { oneOf: OP_SCHEMAS } } }, required: ["ops"] },
   },
   {
