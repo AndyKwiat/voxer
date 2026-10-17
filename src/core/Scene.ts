@@ -1,13 +1,25 @@
+import type { Anchors } from "./Anchors";
+import type { Slots } from "./Slots";
+
 /**
  * Serialized scene (save/load, agent sync). `data` is the grid's cells in `VoxelGrid.index` order,
  * run-length encoded as (value byte, varint run length) pairs, then base64.
+ *
+ * Version 2 adds optional `slots` (named palette shade ramps, `core/Slots.ts`) and `anchors` (named
+ * cells, `core/Anchors.ts`). Scenes without either are still written as version 1, so older builds
+ * keep reading them; both versions load.
  */
 export interface SceneData {
-  version: 1;
+  version: SceneVersion;
   size: number;
   palette: string[];
   data: string;
+  slots?: Slots;
+  anchors?: Anchors;
 }
+
+export type SceneVersion = 1 | 2;
+export const SCENE_VERSIONS: readonly number[] = [1, 2];
 
 export function encodeCells(cells: Uint8Array): string {
   const out: number[] = [];

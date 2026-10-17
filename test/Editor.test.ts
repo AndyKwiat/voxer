@@ -143,3 +143,109 @@ describe("Editor batch ops and scenes", () => {
     expect(other.grid.count).toBe(0);
   });
 });
+
+describe("Editor slots and anchors", () => {
+  const house = () => {
+    const ed = new Editor(new VoxelGrid(16), new Palette(["#000000", "#ffffff"]));
+    const roof = ed.defineSlot("roof", "#3a9ab0", { dark: 0.74 });
+    const wall = ed.defineSlot("wall", "#f6e8c8");
+    ed.run([
+      { op: "box", min: [2, 0, 2], max: [9, 4, 9], color: wall.colors.base! },
+      { op: "box", min: [2, 5, 2], max: [9, 5, 9], color: roof.colors.base! },
+      { op: "box", min: [2, 6, 2], max: [9, 6, 9], color: roof.colors.dark! },
+    ]);
+    ed.setAnchor("door", { x: 5, y: 0, z: 10, dir: "+z", note: "outside the front door" });
+    return ed;
+  };
+
+  test("defineSlot adds ramp colors that draw ops paint with; recolorSlot recolors those voxels", () => {
+    const ed = house();
+    expect(ed.palette.length).toBe(5);
+    expect(ed.listSlots().roof).toEqual({ base: "#3a9ab0", colors: { base: "#3a9ab0", dark: "#2b7282" }, factors: { base: 1, dark: 0.74 } });
+    let palEvents = 0, meta = 0;
+    ed.on("palette", () => palEvents++);
+    ed.on("meta", () => meta++);
+    ed.recolorSlot("roof", "#e8b830");
+    expect(palEvents).toBe(1);
+    expect(meta).toBe(1);
+    const roofTop = ed.grid.get(4, 6, 4);
+    expect(ed.palette.get(Palette.fromCell(roofTop))).toBe("#ac8824");
+    expect(ed.info().slots.roof!.colors).toEqual({ base: "#e8b830", dark: "#ac8824" });
+    ed.adoptSlot("trim", ["#ffffff"]);
+    expect(Object.keys(ed.slots)).toEqual(["roof", "wall", "trim"]);
+  });
+
+  test("serialize/load round-trips slots + anchors as version 2", () => {
+    const ed = house();
+    const saved = JSON.parse(JSON.stringify(ed.serialize()));
+    expect(saved.version).toBe(2);
+    expect(saved.anchors).toEqual({ door: { x: 5, y: 0, z: 10, dir: "+z", note: "outside the front door" } });
+    expect(Object.keys(saved.slots)).toEqual(["roof", "wall"]);
+    const other = new Editor();
+    other.load(saved);
+    expect(other.serialize()).toEqual(saved);
+    expect(other.slots).toEqual(ed.slots);
+    expect(other.anchors).toEqual(ed.anchors);
+    other.recolorSlot("wall", "#a0a0a0"); // loaded slots are live
+    expect(other.palette.get(Palette.fromCell(other.grid.get(2, 0, 2)))).toBe("#a0a0a0");
+  });
+
+  test("version 1 scenes without slots/anchors still load, and plain scenes still save as version 1", () => {
+    const v1 = { version: 1 as const, size: 2, palette: ["#000000", "#ff0000"], data: "AAECAgAF" }; // 1 empty, 2 red, 5 empty
+    const ed = house();
+    ed.load(v1);
+    expect(ed.grid.count).toBe(2);
+    expect(ed.slots).toEqual({});
+    expect(ed.anchors).toEqual({});
+    expect(ed.serialize()).toEqual(v1);
+    expect(() => ed.load({ ...v1, version: 3 as never })).toThrow(/version/);
+    expect(() => ed.load({ ...v1, version: 2, slots: { roof: { base: "#ffffff", shades: { base: { index: 9, factor: 1 } } } } })).toThrow();
+    expect(ed.grid.count).toBe(2); // a bad scene doesn't half-load
+  });
+
+  test("makeVariant returns a recolored scene without touching the editor", () => {
+    const ed = house();
+    const before = ed.serialize();
+    let events = 0;
+    ed.on("palette", () => events++);
+    ed.on("meta", () => events++);
+    const v = ed.makeVariant({ roof: "#e8b830", wall: "#c0a080" });
+    expect(ed.serialize()).toEqual(before);
+    expect(events).toBe(0);
+    expect(v.data).toBe(before.data);
+    expect(v.anchors).toEqual(before.anchors!);
+    const other = new Editor();
+    other.load(v);
+    expect(other.palette.get(Palette.fromCell(other.grid.get(4, 6, 4)))).toBe("#ac8824");
+    expect(other.palette.get(Palette.fromCell(other.grid.get(2, 0, 2)))).toBe("#c0a080");
+    expect(() => ed.makeVariant({ roof: "yellow" })).toThrow();
+  });
+
+  test("anchors: set/remove, carried by translate (undoably), cleared by newScene", () => {
+    const ed = house();
+    expect(() => ed.setAnchor("door", { x: 1.5, y: 0, z: 0 })).toThrow();
+    ed.setAnchor("roof_top", { x: 5, y: 7, z: 5 });
+    ed.run([{ op: "translate", offset: [3, 0, 0] }]);
+    expect(ed.anchors.door).toMatchObject({ x: 8, y: 0, z: 10, dir: "+z" });
+    expect(ed.anchors.roof_top).toEqual({ x: 8, y: 7, z: 5 });
+    expect(ed.run([{ op: "mirror", axis: "x", source: "upper" }])).toBeGreaterThan(0);
+    expect(ed.anchors.roof_top).toEqual({ x: 8, y: 7, z: 5 });
+    ed.undo(); // mirror
+    ed.undo(); // translate
+    expect(ed.anchors.door).toMatchObject({ x: 5, z: 10 });
+    expect(ed.anchors.roof_top).toEqual({ x: 5, y: 7, z: 5 });
+    ed.redo();
+    expect(ed.anchors.roof_top).toEqual({ x: 8, y: 7, z: 5 });
+    expect(ed.removeAnchor("roof_top")).toBe(true);
+    expect(ed.removeAnchor("roof_top")).toBe(false);
+    ed.newScene();
+    expect(ed.anchors).toEqual({});
+    expect(ed.slots).toEqual({});
+  });
+
+  test("slots whose palette entries disappear are dropped", () => {
+    const ed = house();
+    ed.palette.replaceAll(["#000000", "#ffffff", "#3a9ab0", "#2b7282"]); // wall's entry (index 4) is gone
+    expect(Object.keys(ed.slots)).toEqual(["roof"]);
+  });
+});
