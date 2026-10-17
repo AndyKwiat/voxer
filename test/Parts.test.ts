@@ -282,6 +282,11 @@ describe("Parts: stamp", () => {
     k.run([{ op: "stamp", scene: source(), at: [2, 3, 3] }]);
     expect(k.grid.count).toBe(2); // x 2..3 of 2..4, z 3 of 3..4
     expect(() => k.run([{ op: "stamp", scene: "house" }])).toThrow(/name/);
+    const roofScene = (() => { const r = ed(48); r.run([{ op: "roof", min: [10, 10], max: [30, 22], y: 5 }]); return r.serialize(); })();
+    const rs = ed(48);
+    rs.run([{ op: "stamp", scene: roofScene, reshade: { [MATERIALS.roof]: "#c04030" } }]);
+    expect(cellsOf(rs, shade("#c04030", 0.45)).length).toBeGreaterThan(0);
+    expect(rs.info().colorsUsed.every((c) => ["#c04030", ...[0.74, 1.22, 1.42, 0.45, 0.86].map((f) => shade("#c04030", f))].includes(c.hex))).toBe(true);
   });
 });
 

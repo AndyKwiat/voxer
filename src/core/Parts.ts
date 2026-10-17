@@ -71,8 +71,11 @@ export type PartOp =
   | { op: "lantern"; at: V3 | V3[]; size?: number; color?: Color; cap?: Color; tassel?: Color }
   | {
       op: "stamp"; scene: SceneData | string; at?: V3; rot?: 0 | 1 | 2 | 3; mirror?: "x" | "z";
-      recolor?: Record<string, string | null>; anchor?: "bbox" | "origin"; crop?: { min: V3; max: V3 };
+      recolor?: Record<string, string | null>; reshade?: Record<string, string>; anchor?: "bbox" | "origin"; crop?: { min: V3; max: V3 };
     };
+
+/** Every shade factor the parts library derives (roof/wall/pillar/pattern ramps); `stamp.reshade` remaps them all. */
+export const SHADE_FACTORS = [0.45, 0.72, 0.74, 0.77, 0.84, 0.85, 0.86, 0.87, 0.93, 1.04, 1.12, 1.22, 1.42] as const;
 
 export const PART_OP_NAMES = ["roof", "walls", "window", "door", "pillar", "beam", "railing", "stairs", "arch", "crenels", "lantern", "stamp"] as const;
 export type PartOpName = (typeof PART_OP_NAMES)[number];
@@ -503,6 +506,12 @@ function stamp(d: Draft, op: Extract<PartOp, { op: "stamp" }>, resolve: HexAware
     const from = normalizeHex(k);
     if (!from) throw new Error(`stamp: recolor key "${k}" is not a hex color`);
     recolor.set(from, v);
+  }
+  for (const [k, v] of Object.entries(op.reshade ?? {})) {
+    const from = normalizeHex(k), to = normalizeHex(v);
+    if (!from || !to) throw new Error(`stamp: reshade needs hex colors, got "${k}": "${v}"`);
+    if (!recolor.has(from)) recolor.set(from, to);
+    for (const f of SHADE_FACTORS) { const sf = shade(from, f); if (!recolor.has(sf)) recolor.set(sf, shade(to, f)); }
   }
   const map = new Map<number, number | null>();
   const valueOf = (cell: number): number | null => {
