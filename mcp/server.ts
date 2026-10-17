@@ -16,6 +16,8 @@ import { extname, isAbsolute, resolve } from "node:path";
 import { launchChrome, type Chrome } from "../scripts/lib/chrome";
 import { isScratch, MODELS_DIR, startServer } from "../server/index";
 import { readSceneFile, writeSceneFile } from "../server/SceneFile";
+import { buildRecipes, loadRecipes } from "../scripts/lib/recipe-build";
+import { pageHost } from "../scripts/lib/recipe-host";
 import { degradedNote, snapshotWithRetry, toPageParams } from "./snapshot";
 import { INSTRUCTIONS, TOOLS } from "./tools";
 
@@ -247,6 +249,26 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
   async lint(a) {
     const { summary, ...r } = await rpc("lint", a);
     return withSummary(summary, r);
+  },
+  async build_recipe(a) {
+    const paths = (Array.isArray(a.path) ? a.path : [a.path]).filter((p: unknown) => typeof p === "string" && p);
+    if (!paths.length) throw new Error("give path: a recipe file or directory (or a list)");
+    const recipes = await loadRecipes(paths.map((p: string) => resolve(process.cwd(), p)));
+    if (!recipes.length) throw new Error(`no recipes found in ${paths.join(", ")}`);
+    await ensurePage();
+    const s = await status();
+    const ownHeadless = !!chrome && !!s.active?.headless;
+    const host = pageHost((m, p, t) => rpc(m, p, t), { recover: ownHeadless ? relaunchHeadless : undefined, log });
+    const r = await buildRecipes(recipes, host, {
+      outDir: resolve(process.cwd(), a.out_dir ?? "out/recipes"), only: a.only, export: a.export, figure: a.figure, sheet: a.sheet, snapshotTimeoutMs: SNAPSHOT_TIMEOUT_MS,
+    });
+    const models = r.models.map((m) => ({ name: m.name, voxels: m.voxels, bbox: m.bbox, warnings: m.warnings, errors: m.errors, files: m.files, anchors: m.anchors, slots: Object.keys(m.slots) }));
+    const body = `${r.text}\nLoaded now: ${r.models.at(-1)?.name ?? "nothing"}.\n${JSON.stringify({ manifest: r.manifest, models })}`;
+    if (!r.ok) throw new Error(body);
+    const last = r.models.at(-1);
+    const show = a.show_sheet ?? r.models.length === 1;
+    if (show && last?.files.sheet) return [...text(body), { type: "image", data: Buffer.from(await Bun.file(last.files.sheet).arrayBuffer()).toString("base64"), mimeType: "image/png" }];
+    return text(body);
   },
 };
 

@@ -358,7 +358,29 @@ export const TOOLS: ToolDef[] = [
       },
     },
   },
+  {
+    name: "build_recipe",
+    description:
+      "Build recipe file(s) — JS/TS modules or JSON exporting { name, size, slots?, ops | build(ctx), anchors?, variants?, export? } (format: recipes/README.md) — " +
+      "into scene files: per recipe new_scene → define slots → run ops (\"slot:roof.dark\" strings resolve to slot colors; {op:\"stamp\", recipe:\"house\"} builds that recipe first) → anchors → lint, " +
+      "then writes <out>/<name>.json, <name>@<variant>.json, meshes, sheets/<name>.png and manifest.json. Returns one line per model (voxels, bbox, warnings from the write report + lint) and the file paths. " +
+      "The last model built stays loaded, so you can keep editing or snapshot it. Relative paths resolve against the MCP server's working directory (the Voxer checkout); prefer absolute paths.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { oneOf: [{ type: "string" }, { type: "array", items: { type: "string" } }], description: "Recipe file(s) or directories (.js/.mjs/.ts/.json)" },
+        out_dir: { type: "string", description: "Output directory (default out/recipes under the server's working directory)" },
+        only: { type: "array", items: { type: "string" }, description: "Only these recipe names (stamped recipes are still built)" },
+        export: { type: "array", items: { type: "string", enum: ["glb", "obj", "json"] }, description: "Extra mesh formats for every recipe" },
+        figure: { type: "boolean", description: "Scale person on the sheets" },
+        sheet: { type: "boolean", description: "Render snapshot sheets (default true)" },
+        show_sheet: { type: "boolean", description: "Return the last model's sheet as an image (default: when exactly one model is built)" },
+      },
+      required: ["path"],
+    },
+  },
 ];
 
 export const INSTRUCTIONS = `Voxer is a voxel editor you control through these tools. Coordinates: integer cells, Y is up, the model's front faces +Z (the "front" view looks from +Z), x grows to the right in the front view. Default grid 32³ (new_scene can resize up to 256).
-Workflow for building from a reference image + description: (1) get_reference / look at the image, decide the grid size and proportions; (2) block out big masses with box/ellipsoid/cylinder in one draw batch; (3) refine with layer ops (ASCII slices) and mirror for symmetry; sample_reference can turn the image into a ready-made layer; (4) snapshot (reference=true) after every pass, list concrete differences, fix them; (5) save_scene. Snapshots' ruler numbers are cell coordinates — use them to place things precisely.`;
+Workflow for building from a reference image + description: (1) get_reference / look at the image, decide the grid size and proportions; (2) block out big masses with box/ellipsoid/cylinder in one draw batch; (3) refine with layer ops (ASCII slices) and mirror for symmetry; sample_reference can turn the image into a ready-made layer; (4) snapshot (reference=true) after every pass, list concrete differences, fix them; (5) save_scene. Snapshots' ruler numbers are cell coordinates — use them to place things precisely.
+Models kept as code (recipe files: ops or build(ctx), slots, anchors, variants; see recipes/README.md) are built with build_recipe, which writes scene/variant/mesh/sheet files and leaves the last model loaded.`;

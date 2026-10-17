@@ -40,6 +40,12 @@ Mesh export: `export_mesh` (API and MCP tool) meshes with `core/GreedyMesher` an
 The MCP tool takes an extra `path`: the MCP server process writes the file there and returns only stats
 (without `path` the base64 file is returned). Large scenes produce several MB of base64, so the app server's
 WebSocket `maxPayloadLength` is 64 MB.
+**Recipes** (`build_recipe {path, out_dir?, only?, export?, figure?, sheet?, show_sheet?}`): builds recipe files
+(`recipes/README.md`) on the current page with the shared builder (`scripts/lib/recipe-build.ts`, the same code as
+`bun run recipe`), writes `<out>/<name>.json`, variants, meshes, `sheets/<name>.png` and `manifest.json`, and returns
+one summary line per model + JSON with the file paths (plus the sheet image when one model was built). The last model
+stays loaded. Failing recipes make the call an error whose text still lists every model.
+
 MCP `draw`, `run_script` and `lint` return text that starts with the human-readable summary (`WARNING:` lines
 first, e.g. `WARNING: op 1 (ellipsoid): 30 cells clipped outside the grid (x 32..33; grid 0..31)`), followed by
 the JSON result on the next line (old fields `changed`, `count`, `bbox`, `colorsUsed` are kept).
