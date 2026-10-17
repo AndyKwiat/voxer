@@ -91,6 +91,7 @@ export const TOOLS: ToolDef[] = [
         reference: { type: "boolean" },
         shading: { type: "string", enum: ["flat", "lit"], description: "Axis views: flat (default) = exact palette colors; lit = scene lighting" },
         columns: { type: "integer", minimum: 1 },
+        anchors: { type: "boolean", description: "Draw anchors (cell outline + name + dir arrow; dot in iso views). Default: on when the scene has any" },
       },
     },
   },
@@ -159,6 +160,75 @@ export const TOOLS: ToolDef[] = [
   {
     name: "open_viewer",
     description: "Open the app in the user's default browser so they can watch live; it takes over from the headless page with the same scene.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "define_slot",
+    description:
+      "Define a named material slot (e.g. roof, wall, pillar, cloth) as a shade ramp so the model can be recolored later (recolor_slot / make_variant). " +
+      "Form 1 {name, base, shades?}: adds base + each shade (factor × base per RGB channel, e.g. {dark: 0.74, light: 1.22}, or an explicit hex) to the palette " +
+      "and returns {colors: {base: hex, dark: hex, …}} — paint with exactly those hexes (they are kept unique, so they may differ from the request by ±1). " +
+      "Redefining a slot reuses its palette entries by shade name. Form 2 {name, colors: [hex|index, …], names?}: adopts existing palette colors (first = base; factors are fitted).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_-]{0,31}$" },
+        base: { type: "string", description: "#rrggbb" },
+        shades: { type: "object", additionalProperties: { type: ["number", "string"] }, description: 'shade name → factor of base (0..16) or "#rrggbb", e.g. {"dark":0.74,"light":1.22,"cap":1.42,"ridge":0.45}' },
+        colors: { type: "array", items: { type: ["string", "integer"] }, minItems: 1, description: "Existing palette colors (hex or index) to adopt; first is the base" },
+        names: { type: "array", items: { type: "string" }, description: "Shade names for `colors` (names[0] is ignored: always base). Default shade1, shade2, …" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "recolor_slot",
+    description: "Recolor a slot in the current scene: every palette entry of its ramp is re-derived from the new base (shade = factor × base), so all voxels painted with the slot change.",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, base: { type: "string", description: "#rrggbb" } }, required: ["name", "base"] },
+  },
+  {
+    name: "make_variant",
+    description:
+      "Make a color variant of the current scene WITHOUT changing it: recolors the given slots ({roof: \"#e8b830\", wall: \"#…\"}). " +
+      "With save_as, saves it as models/<save_as>.json and returns the variant's slot colors; otherwise returns the variant scene JSON.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slots: { type: "object", additionalProperties: { type: "string" }, description: "slot name → new base #rrggbb" },
+        save_as: { type: "string", pattern: "^[A-Za-z0-9][\\w.-]{0,63}$" },
+      },
+      required: ["slots"],
+    },
+  },
+  {
+    name: "list_slots",
+    description: "Material slots: {name: {base, colors: {shade: current hex}, factors: {shade: factor}}}.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "set_anchor",
+    description:
+      "Set (or replace) a named anchor saved with the scene: a cell the game needs, e.g. door (with dir \"+z\" = facing out the front), roof_top, seat, pivot. " +
+      "Coordinates are integer cells and may lie outside the model or grid. A moving `translate` op carries anchors along (all, or those inside its box); mirror/clear don't; new_scene clears them.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_.-]{0,31}$" },
+        x: { type: "integer" }, y: { type: "integer" }, z: { type: "integer" },
+        dir: { type: "string", enum: ["+x", "-x", "+y", "-y", "+z", "-z"] },
+        note: { type: "string" },
+      },
+      required: ["name", "x", "y", "z"],
+    },
+  },
+  {
+    name: "remove_anchor",
+    description: "Remove a named anchor.",
+    inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+  },
+  {
+    name: "list_anchors",
+    description: "Anchors in the scene: {name: {x, y, z, dir?, note?}}.",
     inputSchema: { type: "object", properties: {} },
   },
 ];

@@ -137,5 +137,9 @@ describe("agent hub + api", () => {
     expect((await fetch(`${base}/api/scenes/nope`)).status).toBe(404);
     expect((await fetch(`${base}/api/scenes/_autosave`, { method: "PUT", body: JSON.stringify(scene) })).status).toBe(400);
     expect((await fetch(`${base}/api/scenes/x`, { method: "PUT", body: "{}" })).status).toBe(400);
+    const v2 = { ...scene, version: 2, anchors: { door: { x: 1, y: 0, z: 3 } } };
+    expect((await fetch(`${base}/api/scenes/house2`, { method: "PUT", body: JSON.stringify(v2) })).status).toBe(200);
+    expect(await (await fetch(`${base}/api/scenes/house2`)).json()).toEqual(v2);
+    expect((await fetch(`${base}/api/scenes/x`, { method: "PUT", body: JSON.stringify({ ...scene, version: 3 }) })).status).toBe(400);
   });
 });

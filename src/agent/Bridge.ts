@@ -26,6 +26,7 @@ export class Bridge {
     editor.on("voxels", push);
     editor.on("palette", push);
     editor.on("reset", push);
+    editor.on("meta", push);
     this.render("connecting…");
     void this.connect();
   }

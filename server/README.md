@@ -16,7 +16,7 @@ Exports `handleRequest`, `resolvePublicPath`, `startServer(port, root)` so tests
 | `POST /api/rpc` `{method, params}` | runs `window.voxer.api[method]` in the active page → `{result}`; 503 if no page, 400 on error |
 | `GET /api/scene` | last scene the active page pushed |
 | `GET/PUT/DELETE /api/reference` | reference image bytes (png/jpeg/webp/gif); PUT/DELETE notify pages |
-| `GET /api/scenes`, `GET/PUT /api/scenes/:name` | saved scenes |
+| `GET /api/scenes`, `GET/PUT /api/scenes/:name` | saved scenes (PUT accepts scene versions 1 and 2) |
 
 `Store` keeps scenes / reference / autosave as files in `modelsDir` (the real server uses `models/`) or in
 memory when omitted (tests, browser-check). Add routes in `handleApi`; add a test in `test/server.test.ts`.

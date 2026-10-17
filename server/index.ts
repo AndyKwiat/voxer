@@ -1,6 +1,6 @@
 import type { Server } from "bun";
 import { join, normalize } from "node:path";
-import type { SceneData } from "../src/core/Scene";
+import { SCENE_VERSIONS, type SceneData } from "../src/core/Scene";
 import { Hub, NoClientError, type ClientData } from "./Hub";
 import { Store, validSceneName } from "./Store";
 
@@ -72,7 +72,7 @@ export async function handleApi(req: Request, hub: Hub, store: Store): Promise<R
     if (m === "GET") { const s = await store.getScene(name); return s ? json(s) : json({ error: `no scene "${name}"` }, 404); }
     if (m === "PUT") {
       const s = (await req.json().catch(() => null)) as SceneData | null;
-      if (!s || s.version !== 1 || typeof s.data !== "string" || !Array.isArray(s.palette)) return json({ error: "expected a scene { version: 1, size, palette, data }" }, 400);
+      if (!s || !SCENE_VERSIONS.includes(s.version) || typeof s.data !== "string" || !Array.isArray(s.palette)) return json({ error: "expected a scene { version: 1|2, size, palette, data }" }, 400);
       await store.putScene(name, s);
       return json({ ok: true });
     }

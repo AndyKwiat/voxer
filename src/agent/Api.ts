@@ -1,8 +1,10 @@
 import * as THREE from "three";
+import type { Anchor } from "../core/Anchors";
 import { applyOp, Draft, type Color, type Op } from "../core/Commands";
 import type { Editor } from "../core/Editor";
 import { Palette } from "../core/Palette";
 import type { SceneData } from "../core/Scene";
+import { slotSummary } from "../core/Slots";
 import type { Axis } from "../core/Tools";
 import { EMPTY } from "../core/VoxelGrid";
 import { canvasToBase64, snapshotSheet } from "../render/Capture";
@@ -97,6 +99,36 @@ export function createApi(editor: Editor, view: Viewport, reference: ReferenceIm
       editor.applyEdits(edits);
       return { changed: edits.length, count: editor.grid.count, result: result ?? null };
     },
+
+    /**
+     * Named material slot (`core/Slots.ts`). `{name, base, shades?}` adds a shade ramp of `base` to the
+     * palette (shades: name → factor or hex) and returns the hexes to paint with; `{name, colors, names?}`
+     * adopts existing palette colors (hex or index; first = base).
+     */
+    define_slot: (p: { name: string; base?: string; shades?: Record<string, number | string>; colors?: (string | number)[]; names?: string[] }) => {
+      if (p?.colors !== undefined) {
+        if (p.base !== undefined) throw new Error("define_slot: give either base (+ shades) or colors, not both");
+        return { name: p.name, ...editor.adoptSlot(p.name, p.colors, p.names) };
+      }
+      if (typeof p?.base !== "string") throw new Error("define_slot: expected { name, base, shades? } or { name, colors }");
+      return { name: p.name, ...editor.defineSlot(p.name, p.base, p.shades) };
+    },
+    /** Re-derives every palette entry of a slot from a new base color (recolors its voxels). */
+    recolor_slot: (p: { name: string; base: string }) => ({ name: p?.name, ...editor.recolorSlot(p?.name, p?.base) }),
+    /** The current scene with slots recolored (`{slots: {roof: "#e8b830"}}`); the current scene is unchanged. */
+    make_variant: (p: { slots: Record<string, string> }) => {
+      const scene = editor.makeVariant(p?.slots);
+      return { scene, slots: slotSummary(scene.slots ?? {}, scene.palette) };
+    },
+    list_slots: () => editor.listSlots(),
+
+    /** Named anchor (`core/Anchors.ts`): a cell plus optional dir ("+x"…"-z") and note. Replaces an existing one. */
+    set_anchor: (p: { name: string } & Anchor) => {
+      const { name, ...a } = p ?? ({} as never);
+      return { name, ...editor.setAnchor(name, a) };
+    },
+    remove_anchor: (p: { name: string }) => ({ removed: editor.removeAnchor(p?.name) }),
+    list_anchors: () => editor.anchors,
   };
   return api;
 }

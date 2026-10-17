@@ -176,6 +176,19 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
     Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore" });
     return text(`Opened ${url}. The tab becomes the active viewer with the current scene.`);
   },
+  define_slot: async (a) => text(await rpc("define_slot", a)),
+  recolor_slot: async (a) => text(await rpc("recolor_slot", a)),
+  async make_variant(a) {
+    const r = await rpc("make_variant", { slots: a.slots });
+    if (!a.save_as) return text(r);
+    const s = await api(`/api/scenes/${encodeURIComponent(a.save_as)}`, { method: "PUT", body: JSON.stringify(r.scene) });
+    if (!s.ok) throw new Error(((await s.json()) as { error: string }).error);
+    return text({ saved: `models/${a.save_as}.json`, slots: r.slots });
+  },
+  list_slots: async () => text(await rpc("list_slots")),
+  set_anchor: async (a) => text(await rpc("set_anchor", a)),
+  remove_anchor: async (a) => text(await rpc("remove_anchor", a)),
+  list_anchors: async () => text(await rpc("list_anchors")),
 };
 
 // ---------- MCP stdio transport ----------
