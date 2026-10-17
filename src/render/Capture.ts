@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { boundingBox } from "../core/Commands";
 import type { Editor } from "../core/Editor";
+import { figureSpec, unionBox, withFigure, DEFAULT_FIGURE_HEIGHT } from "./ScaleFigure";
 import type { Viewport } from "./Viewport";
 import {
   AXIS_VIEW_DEFS, isAxisView, isoCamera, labelStep, orthoFrame, toScreen,
@@ -20,6 +21,8 @@ export interface SnapshotOptions {
   shading?: "flat" | "lit";
   /** Columns in the sheet. Default: 2 for up to 4 tiles, else 3. */
   columns?: number;
+  /** Scale figure beside the model (`true` = 8 cells tall, a number = that height). See `ScaleFigure.ts`. */
+  figure?: boolean | number;
 }
 
 export const DEFAULT_VIEWS: ViewName[] = ["front", "left", "top", "iso"];
@@ -38,10 +41,12 @@ export function snapshotSheet(view: Viewport, editor: Editor, opts: SnapshotOpti
   const s = editor.grid.size;
   const bb = boundingBox(editor.grid);
   const gridBox: Box3 = { min: { x: 0, y: 0, z: 0 }, max: { x: s, y: s, z: s } };
-  const box: Box3 = opts.frame === "grid" || !bb ? gridBox
+  const box0: Box3 = opts.frame === "grid" || !bb ? gridBox
     : { min: bb.min, max: { x: bb.max.x + 1, y: bb.max.y + 1, z: bb.max.z + 1 } };
+  const fig = opts.figure ? figureSpec(bb ? { min: bb.min, max: { x: bb.max.x + 1, y: bb.max.y + 1, z: bb.max.z + 1 } } : gridBox, typeof opts.figure === "number" ? opts.figure : DEFAULT_FIGURE_HEIGHT, s) : null;
+  const box = fig ? unionBox(box0, fig.box) : box0;
 
-  const tiles: HTMLCanvasElement[] = views.map((name) => (isAxisView(name) ? axisTile(view, AXIS_VIEW_DEFS[name], box, s, px, opts.shading !== "lit") : isoTile(view, name, box, px)));
+  const tiles: HTMLCanvasElement[] = withFigure(view, fig, () => views.map((name) => (isAxisView(name) ? axisTile(view, AXIS_VIEW_DEFS[name], box, s, px, opts.shading !== "lit") : isoTile(view, name, box, px))));
   if (opts.reference) tiles.push(referenceTile(opts.reference, px));
 
   const cols = opts.columns ?? (tiles.length <= 4 ? Math.min(2, tiles.length) : 3);
