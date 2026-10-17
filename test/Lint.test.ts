@@ -28,11 +28,23 @@ describe("lint", () => {
       { op: "box", min: [8, 0, 8], max: [9, 2, 9], color: 1 },
       { op: "set", voxels: [[4, 2, 2, 0]] }, // only edge/corner contact with the first box: separate component
     ]);
-    const c = lint(g, PAL).components!;
+    const c = lint(g, PAL, { connectivity: 6 }).components!;
     expect(c.count).toBe(3);
     expect(c.list.map((p) => p.size)).toEqual([16, 12, 1]);
     expect(c.list[0]!.bbox).toEqual({ min: { x: 0, y: 0, z: 0 }, max: { x: 3, y: 1, z: 1 } });
     expect(c.list[1]!.bbox).toEqual({ min: { x: 8, y: 0, z: 8 }, max: { x: 9, y: 2, z: 9 } });
+  });
+
+  test("connectivity: default 26 joins edge/corner contact (diagonal lines stay one piece); 18 joins edges only", () => {
+    const g = grid(16, [
+      { op: "box", min: [0, 0, 0], max: [3, 1, 1], color: 0 },
+      { op: "set", voxels: [[4, 2, 2, 0]] }, // corner contact with the box
+      { op: "line", from: [8, 0, 8], to: [14, 6, 14], color: 1 }, // 3D diagonal: corner-to-corner steps
+    ]);
+    expect(lint(g, PAL).components!.count).toBe(2);
+    expect(lint(g, PAL, { connectivity: 18 }).components!.count).toBe(1 + 1 + 7);
+    expect(lint(g, PAL, { connectivity: 6 }).components!.count).toBe(1 + 1 + 7);
+    expect(() => lint(g, PAL, { connectivity: 4 as never })).toThrow();
   });
 
   test("specks: small detached pieces with their cells", () => {
@@ -56,7 +68,7 @@ describe("lint", () => {
       { op: "box", min: [8, 8, 0], max: [8, 8, 1], color: 1 }, // diagonally on the previous piece
       { op: "box", min: [10, 10, 10], max: [12, 12, 12], color: 2 }, // in the air
     ]);
-    const c = lint(g, PAL).components!;
+    const c = lint(g, PAL, { connectivity: 6 }).components!;
     expect(c.count).toBe(4);
     expect(c.mainOnFloor).toBe(true);
     expect(c.floatingCount).toBe(1);

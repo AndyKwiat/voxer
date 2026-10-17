@@ -19,6 +19,11 @@ export interface LintOptions {
   symmetry?: boolean;
   /** Unused / near-duplicate palette colors (default true). */
   palette?: boolean;
+  /**
+   * Which neighbours join voxels into one component: 6 = shared face, 18 = face or edge, 26 = face, edge or
+   * corner (default 26: pieces that touch along an edge/corner look attached, and diagonal `line`s stay whole).
+   */
+  connectivity?: 6 | 18 | 26;
   /** Components smaller than this are specks (default 4). */
   speckSize?: number;
   /** Floor height for floating checks (default 0). */
@@ -115,6 +120,13 @@ export function lint(grid: VoxelGrid, palette: readonly string[] = [], opts: Lin
       occ.set(data.subarray(g, g + W), pi(x0, y, z));
     }
   const NB = [1, -1, PW, -PW, PL, -PL] as const;
+  const conn = opts.connectivity ?? 26;
+  if (conn !== 6 && conn !== 18 && conn !== 26) throw new Error("lint: connectivity must be 6, 18 or 26");
+  const CNB: number[] = []; // component neighbours (the 1-cell padding makes every ±1 step safe)
+  for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+    const k = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+    if (k > 0 && (k === 1 || (k === 2 && conn >= 18) || (k === 3 && conn === 26))) CNB.push(dy * PL + dz * PW + dx);
+  }
   const grow = (b: Box, p: number) => {
     const x = xOf(p), y = yOf(p), z = zOf(p);
     if (x < b.min.x) b.min.x = x; if (x > b.max.x) b.max.x = x;
@@ -147,8 +159,8 @@ export function lint(grid: VoxelGrid, palette: readonly string[] = [], opts: Lin
       while (head < tail) {
         const q = queue[head++]!;
         grow(c.bbox, q);
-        for (let k = 0; k < 6; k++) {
-          const m = q + NB[k]!;
+        for (let k = 0; k < CNB.length; k++) {
+          const m = q + CNB[k]!;
           if (occ[m] && !label[m]) { label[m] = id; queue[tail++] = m; }
         }
       }
@@ -157,7 +169,7 @@ export function lint(grid: VoxelGrid, palette: readonly string[] = [], opts: Lin
     }
 
     // Support: a piece is grounded if it touches the floor, is the main (largest) body, or has a cell
-    // diagonally above a grounded piece's cell (face contact would have merged them). Propagated to a fixpoint.
+    // diagonally above a grounded piece's cell (only reachable with connectivity 6/18; contact would have merged them). Propagated to a fixpoint.
     const floorY = opts.floorY ?? 0;
     let main = comps[0]!;
     for (const c of comps) if (c.size > main.size) main = c;

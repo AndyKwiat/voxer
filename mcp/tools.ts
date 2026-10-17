@@ -351,6 +351,7 @@ export const TOOLS: ToolDef[] = [
         symmetry: { type: "boolean", description: "Mirror symmetry scores (default true)" },
         palette: { type: "boolean", description: "Unused / near-duplicate colors (default true)" },
         speckSize: { type: "integer", minimum: 1, description: "Pieces smaller than this are specks (default 4)" },
+        connectivity: { type: "integer", enum: [6, 18, 26], description: "Voxels join a piece through shared faces (6), faces+edges (18) or faces+edges+corners (26, default: what looks attached)" },
         floorY: { type: "integer", description: "Floor height for the floating check (default 0)" },
         nearColor: { type: "number", minimum: 0, description: "RGB distance for near-duplicate colors (default 20)" },
         maxList: { type: "integer", minimum: 1, description: "Max entries per list (default 20)" },

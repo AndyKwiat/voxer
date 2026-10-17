@@ -1,7 +1,7 @@
 import type { Color, ColorResolver, Draft, V3 } from "./Commands";
 import { normalizeHex } from "./Palette";
 import type { Vec3 } from "./Raycast";
-import { decodeCells, type SceneData } from "./Scene";
+import { decodeCells, isSceneData, type SceneData } from "./Scene";
 import type { Axis } from "./Tools";
 import { EMPTY } from "./VoxelGrid";
 
@@ -472,7 +472,7 @@ function lantern(d: Draft, op: Extract<PartOp, { op: "lantern" }>, resolve: HexA
 export function stampCells(op: Extract<PartOp, { op: "stamp" }>): { x: number; y: number; z: number; value: number }[] {
   const scene = op.scene;
   if (typeof scene === "string") throw new Error(`stamp: scene "${scene}" is a name; the API resolves names, core needs SceneData`);
-  if (!scene || scene.version !== 1 || typeof scene.data !== "string") throw new Error("stamp: scene must be { version: 1, size, palette, data }");
+  if (!isSceneData(scene)) throw new Error("stamp: scene must be { version: 1|2, size, palette, data }");
   const S = scene.size, cells = decodeCells(scene.data, S ** 3);
   const [clo, chi] = op.crop ? sorted(op.crop.min, op.crop.max) : [{ x: 0, y: 0, z: 0 }, { x: S - 1, y: S - 1, z: S - 1 }];
   const src: { x: number; y: number; z: number; value: number }[] = [];

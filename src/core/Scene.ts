@@ -21,6 +21,13 @@ export interface SceneData {
 export type SceneVersion = 1 | 2;
 export const SCENE_VERSIONS: readonly number[] = [1, 2];
 
+/** Shape check for a serialized scene (any supported version). */
+export function isSceneData(s: unknown): s is SceneData {
+  const o = s as SceneData | null;
+  return !!o && typeof o === "object" && SCENE_VERSIONS.includes(o.version) && Number.isInteger(o.size) && o.size > 0
+    && typeof o.data === "string" && Array.isArray(o.palette);
+}
+
 export function encodeCells(cells: Uint8Array): string {
   const out: number[] = [];
   for (let i = 0; i < cells.length; ) {

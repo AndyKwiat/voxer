@@ -1,6 +1,9 @@
 import type { Vec3 } from "./Raycast";
 import { EMPTY } from "./VoxelGrid";
 
+/** Ops whose job is to cut openings into what earlier ops built; erasing earlier cells is a note for them, not a warning. */
+export const CARVING_OPS: ReadonlySet<string> = new Set(["door", "window", "arch"]);
+
 /**
  * Write reports for a batch of drawing ops (`Draft` feeds a `WriteTracker`). Everything is counted per
  * cell, not per write call: a cell an op touches several times counts once, classified by its value
@@ -172,7 +175,7 @@ export class WriteTracker {
         const erasedFrom = rep.overwrote.filter((w) => w.erased);
         const recolFrom = rep.overwrote.filter((w) => w.recolored);
         const n = (ws: Overwrite[], k: "erased" | "recolored") => ws.reduce((t, w) => t + w[k], 0);
-        if (erasedFrom.length) warnings.push(`${label}: erased ${n(erasedFrom, "erased")} cells set by ${opList(erasedFrom)} in this batch`);
+        if (erasedFrom.length) (CARVING_OPS.has(s.op) ? notes : warnings).push(`${label}: erased ${n(erasedFrom, "erased")} cells set by ${opList(erasedFrom)} in this batch`);
         if (recolFrom.length) notes.push(`${label}: recolored ${n(recolFrom, "recolored")} cells set by ${opList(recolFrom)} in this batch`);
       }
       listed++;
