@@ -35,19 +35,28 @@ Claude ─stdio MCP─► mcp/server.ts ─POST /api/rpc─► server Hub ─WS 
 | `core/Tools` | pen/eraser/paint: `targetCell`, `planEdit` (pure), `applyEdit/revertEdit` | pen = hit + normal; eraser/paint = hit cell (voxels only) |
 | `core/History` | stroke-grouped undo/redo stack (limit 200) | `beginStroke/apply/endStroke` |
 | `core/Commands` | batch ops (box, ellipsoid, cylinder, line, layer, set, mirror, translate, replace_color, clear), `dumpLayer`, bbox | pure; atomic per batch |
-| `core/Scene` | `SceneData` + RLE/base64 cell codec | save/load/sync format |
+| `core/Parts` | architecture ops (roof, walls, window, door, pillar, beam, railing, stairs, arch, crenels, lantern, stamp) + box `pattern`s | pure; dispatched from `Commands.applyOp`; seeded cell hash → deterministic |
+| `core/Report` | write reports: `Draft.set` feeds a `WriteTracker`, ops bracketed by `beginOp` | clipping, erasures of earlier ops' cells (doors/windows/arches carving = notes) |
+| `core/Lint` | components/specks/floating (26-connected default), air pockets, boundary contact, symmetry, palette | pure, typed arrays over the padded bbox; ~0.5 s worst case at 256³ |
+| `core/Slots` | named material slots: shade ramps (`shade(base, factor)`), define/adopt/recolor, `variantScene` | pure; slot colours kept unique in the palette |
+| `core/Anchors` | named anchor cells `{x,y,z,dir?,note?}`; `anchorMoves` (translate carries anchors) | pure |
+| `core/GreedyMesher` | export mesher: exposed faces, per-vertex AO in linear vertex colours, greedy merge where colour + 4 corner AO match | pure; 50–64% fewer triangles than per-face |
+| `core/MeshExport` | GLB (glTF 2.0, COLOR_0 linear float) / OBJ (`v x y z r g b`, sRGB) / JSON (base64 typed arrays) | hand-written, no exporter dependency |
+| `core/Scene` | `SceneData` + RLE/base64 cell codec, `isSceneData` | save/load/sync format (v1, v2 with slots/anchors) |
 | `core/Editor` | owns everything above + tool/color; typed events | the only mutable-state owner; grid replaced by `load`/`newScene` |
 | `render/ChunkMesher` | 16³ chunks, exposed-face meshes with vertex colors, dirty tracking | rebuilt lazily in the render loop |
 | `render/GridLines` | floor + 2 walls, lines split into 16-unit pieces | split works around SwiftShader clipping bug |
 | `render/OrbitCamera` | spherical orbit around a target; rotate/pan/zoom | `F` resets |
 | `render/Viewport` | scene, lights, ghost cube, pick(), render-on-demand loop, `renderOffscreen` | subscribes to Editor |
 | `render/Views`, `render/Capture` | named views + ortho framing math (pure); contact-sheet snapshots | |
+| `render/ScaleFigure`, `render/AnchorOverlay` | snapshot-only scale person (`figure`); anchor markers (`anchors`) | hooked from `Capture.snapshotSheet` |
 | `agent/*` | `window.voxer.api`, WebSocket bridge, reference image | see `src/agent/README.md` |
 | `ui/InputController` | all bindings (see CONTROLS.md) | the only place that reads pointer/keyboard |
 | `ui/*` | DOM views | stateless; re-render from events |
 | `server/index.ts` | `Bun.serve` static files (traversal-safe) + `/api/*` + `/agent` WS | |
 | `server/Hub`, `server/Store` | agent routing / active page; scenes, reference, autosave in `models/` | |
-| `mcp/server.ts` | MCP stdio server; hand-rolled JSON-RPC (no SDK dependency) | tools in `mcp/tools.ts` |
+| `server/SceneFile` | scene JSON at absolute paths (`save_scene`/`load_scene {path}`) | |
+| `mcp/server.ts` | MCP stdio server; hand-rolled JSON-RPC (no SDK dependency) | tools in `mcp/tools.ts`; scratch mode; snapshot retries in `mcp/snapshot.ts` |
 
 ## Performance model
 - Edits are O(1) + one chunk remesh (≤16³ cells). Palette edits remesh all non-empty chunks.
@@ -57,11 +66,17 @@ Claude ─stdio MCP─► mcp/server.ts ─POST /api/rpc─► server Hub ─WS 
 ## Dependencies
 - `three` — scene graph, camera math, WebGL. Writing raw WebGL would cost far more code for no user benefit.
 - dev: `typescript`, `@types/three`, `@types/bun`.
+- Export formats are written by hand (`core/MeshExport`): GLB is a JSON chunk + one BIN chunk; three's
+  GLTFExporter would pull DOM/Blob code into core and wouldn't control AO / vertex colours.
 
 ## Save/load
-`Editor.serialize()` → `SceneData { version: 1, size, palette, data }` (`data` = RLE + base64 of the
-grid cells); `Editor.load(scene)`. Server: `GET/PUT /api/scenes/:name` → `models/<name>.json`. Used today
+`Editor.serialize()` → `SceneData { version, size, palette, data, slots?, anchors? }` (`data` = RLE + base64
+of the grid cells); `Editor.load(scene)`. Version 1 when there are no slots/anchors, else 2; both load.
+`slots`: name → `{base, shades: {name: {index, factor}}}`; `anchors`: name → `{x, y, z, dir?, note?}`.
+`new_scene` clears both; a moving `translate` carries anchors (undoable). Server: `GET/PUT /api/scenes/:name` → `models/<name>.json`. Used today
 by the MCP `save_scene`/`load_scene` tools and the sidebar New / Save / Load buttons (`ui/ScenePanel`).
+**Scratch mode** (`startServer(port, root, {scratch: true})`, `VOXER_SCRATCH=1` for MCP) keeps scenes in memory
+with no autosave; `server/SceneFile` writes/reads scenes at absolute paths in either mode.
 
 ## Why no MCP SDK
 The MCP stdio transport is newline-delimited JSON-RPC with four methods we need (`initialize`,

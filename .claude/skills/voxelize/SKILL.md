@@ -9,6 +9,9 @@ You drive the app through the `voxer` MCP tools (`mcp__voxer__*`). It runs headl
 watching; `open_viewer` opens their browser on the live scene. Conventions: integer cells, **Y up**,
 the model's **front faces +Z** (the `front` view), x grows to the right in that view.
 
+Run the MCP server in **scratch mode** (`VOXER_SCRATCH=1`) when building throwaway or batch models, so nothing
+lands in the user's `models/` or their open tab; save results with `save_scene {path}` into the project.
+
 ## 1. Understand the target
 - Reference: if the user pasted an image in chat you can already see it — also save it with
   `set_reference {path}` if you have a file path; if they pasted it **into the app**, call `get_reference`.
@@ -20,6 +23,19 @@ the model's **front faces +Z** (the `front` view), x grows to the right in that 
 ## 2. Block out (one `draw` batch)
 Big primitives first: `box`, `ellipsoid`, `cylinder`, `line` (with `radius` for limbs/branches).
 Use hex colors directly; they're added to the palette. Carve with `erase: true`. Then `snapshot`.
+
+**Read the `draw` result.** Leading `WARNING:` lines mean something went silently wrong: "clipped outside the
+grid" = part of the model was cut off (move it or grow the grid); "erased N cells set by op K" = a later op
+carved away earlier work. (`note:` lines, e.g. a door cutting its wall, are expected.)
+
+**Buildings and architecture:** use the parts ops instead of hand-placing voxels — `walls` → `door`/`window` →
+`pillar`/`beam`/`lantern` → `roof` (y = wall top + 1; the ridge ends at y + number of layers; `maxLayers:3,
+steps:[1,1,1], ridge:false` makes a skirt roof between storeys), plus `stairs`, `railing`, `arch` (carves),
+`crenels`, and box `pattern: "brick"|"checker"|"stripes"|"noise"`. Start from `examples/house.json`. Reuse pieces
+with `save_scene {name}` + `{op: "stamp", scene: "<name>", at, rot}`.
+
+**Colour variants:** call `define_slot` first (e.g. `roof`, base + `{dark: 0.74, light: 1.22}`) and paint only with
+the returned hexes; later `make_variant {slots: {roof: "#e8b830"}, path}` writes a recoloured copy.
 
 ## 3. Use the image directly when it fits
 `sample_reference {cols, maxColors}` (crop to the part you want, `crop` in 0..1 fractions) returns
@@ -42,7 +58,11 @@ Then carve depth with `left`/`top` silhouettes (erase cells outside them) and ro
 missing on the left side", "stem color too yellow"), fix them in one `draw`, repeat. Use the ruler
 numbers (cell coordinates) to target fixes. Check `iso` and `iso_left`/`iso_back` for back/side gaps.
 Stop when the silhouette, proportions and colors match from front, side and top. `undo` freely.
+Add `figure: true` to snapshots to judge door heights and proportions against an 8-cell-tall person.
 
 ## 6. Finish
-`save_scene {name}` (→ `models/<name>.json`), show a final `snapshot`, and tell the user they can
-`open_viewer` (or open http://localhost:3005) to orbit it.
+- `lint` and fix specks, floating pieces and boundary contact (its symmetry pivot works with `mirror`).
+- Mark points a game needs with `set_anchor` (`door` with `dir: "+z"`, `roof_top`, `seat`, `pivot`); check them in
+  a `snapshot`.
+- `save_scene {name}` (→ `models/<name>.json`) or `{path}`; `export_mesh {format: "glb", path}` if a mesh is wanted.
+- Show a final `snapshot`, and tell the user they can `open_viewer` (or open http://localhost:3005) to orbit it.

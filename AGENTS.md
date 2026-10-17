@@ -12,6 +12,7 @@ bun test               # unit tests (bun:test)
 bun run typecheck      # tsc --noEmit — must be clean
 bun run build          # bundles src/main.ts -> public/main.js (gitignored)
 bun scripts/browser-check.ts   # headless Chrome smoke test of the real app (see docs/TESTING.md)
+VOXER_SCRATCH=1 bun mcp/server.ts   # MCP in scratch mode: private in-memory server, never touches models/ or your tab
 bun mcp/server.ts      # MCP server (stdio) — .mcp.json runs it as "voxer" via mcp/run.sh (finds bun for GUI apps); see src/agent/README.md
 ```
 
@@ -34,8 +35,11 @@ current tool + color). `Editor` emits typed events (`voxels`, `tool`, `color`, `
 `src/render/Viewport` and `src/ui/*` subscribe to those events; they never own state.
 `src/ui/InputController` turns mouse/trackpad/keyboard into `Editor`/camera calls. Picking is
 an exact DDA raycast through the grid (`core/Raycast.ts`), not Three.js mesh intersection.
-Batch drawing (`core/Commands.ts`: box/ellipsoid/layer/mirror…) goes through `Editor.run(ops)` as one undo
-step. `src/agent/` exposes that plus snapshots and the reference image to agents (`/voxelize` skill).
+Batch drawing (`core/Commands.ts`: box/ellipsoid/layer/mirror…, plus the architecture parts in
+`core/Parts.ts`: roof/walls/window/door/…/stamp) goes through `Editor.run(ops)` / `runReport(ops)` as one undo
+step; every write passes `Draft.set`, which feeds the write report (`core/Report.ts`: clipped/erased/overwritten
+cells). Scenes may carry material `slots` (shade ramps → variants) and `anchors` (named cells) — format v2.
+`core/Lint.ts` checks models, `core/GreedyMesher` + `MeshExport` export meshes. `src/agent/` exposes that plus snapshots and the reference image to agents (`/voxelize` skill).
 Details: `docs/ARCHITECTURE.md`.
 
 ## Rules
@@ -47,20 +51,27 @@ Details: `docs/ARCHITECTURE.md`.
 5. Keep `bun run typecheck` clean; `strict` + `noUncheckedIndexedAccess` are on.
 6. Update the README in the directory you changed and `docs/ROADMAP.md` when you finish or add an item.
 7. Don't add dependencies without a reason written in `docs/ARCHITECTURE.md`.
+8. **Never write to the user's `models/` from scripts or tests.** Use scratch mode (`VOXER_SCRATCH=1`,
+   `startServer(…, {scratch: true})`, `scripts/lib/headless.ts`) and temp dirs; `save_scene {path}` for files.
+9. New drawing ops must write through `Draft.set` (so write reports count them) and live in their own module
+   with a one-line dispatch in `Commands.applyOp` (see `Parts.ts`).
 
 ## Where things are
 ```
 src/main.ts          wiring only
-src/core/            Editor, VoxelGrid, Palette, Raycast, Tools, History, Emitter, Commands, Scene
-src/render/          Viewport, ChunkMesher, GridLines, OrbitCamera, Views, Capture
-src/ui/              InputController, PalettePanel, Toolbar, StatusBar, ColorPicker
-src/agent/           Api (window.voxer.api), Bridge (WebSocket to hub), Reference (image + sampling)
-server/              index.ts (static + /api), Hub.ts (agent WebSocket routing), Store.ts (models/)
-mcp/                 MCP stdio server + tool schemas
+src/core/            Editor, VoxelGrid, Palette, Raycast, Tools, History, Emitter, Commands, Parts (architecture ops),
+                     Report (write reports), Lint, Slots, Anchors, Scene, GreedyMesher, MeshExport
+src/render/          Viewport, ChunkMesher, GridLines, OrbitCamera, Views, Capture, ScaleFigure, AnchorOverlay
+src/ui/              InputController, PalettePanel, Toolbar, StatusBar, ColorPicker, ScenePanel, ExportButton
+src/agent/           Api (window.voxer.api), Bridge (WebSocket to hub), Reference (image + sampling), Export
+server/              index.ts (static + /api; scratch mode), Hub.ts (agent WebSocket routing), Store.ts (models/),
+                     SceneFile.ts (scenes at absolute paths)
+mcp/                 MCP stdio server + tool schemas, snapshot.ts (retry plan)
 models/              saved scenes (<name>.json); _autosave.json / _reference.* are gitignored
 public/index.html    the single page + all CSS
 test/                one file per module
-scripts/             dev tooling (browser-check, lib/chrome.ts headless Chrome launcher)
+scripts/             dev tooling (browser-check, lib/chrome.ts headless Chrome, lib/headless.ts in-memory Voxer for scripts)
+examples/            example op lists (house.json = a full building from parts ops)
 docs/                ARCHITECTURE, CONTROLS, TESTING, ROADMAP
 .claude/skills/      agent skills
 ```
