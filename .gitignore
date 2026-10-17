@@ -8,3 +8,5 @@ scripts/out/
 .claude/settings.local.json
 # agent/server runtime state (saved scenes in models/*.json are kept)
 models/_*
+# legacy binary lockfile from Bun < 1.2; bun.lock is the lockfile
+bun.lockb

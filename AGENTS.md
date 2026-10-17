@@ -6,7 +6,7 @@ keep the docs in this tree accurate as you change things.
 
 ## Commands
 ```sh
-bun install            # deps
+bun install            # deps (Bun ≥ 1.2; tested on 1.4.3 — `bun upgrade` if older)
 bun run dev            # build + serve http://localhost:3005 (PORT env overrides); press o to open, q to quit
 bun test               # unit tests (bun:test)
 bun run typecheck      # tsc --noEmit — must be clean
