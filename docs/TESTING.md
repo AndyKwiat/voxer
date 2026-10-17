@@ -29,10 +29,14 @@ Known SwiftShader quirks: drops `gl.LINES` whose endpoint crosses the near plane
 `ReadPixels` perf warnings in console are noise.
 
 ## Agent / MCP end to end
-`test/server.test.ts` covers the hub with fake WebSocket pages. For the whole chain, drive `bun mcp/server.ts`
-over stdio with `VOXER_PORT` set to a spare port (it starts its own app server + headless Chrome): send
-`initialize`, `tools/list`, then `tools/call` for `new_scene` → `draw` → `snapshot` and decode the image
-content. Note: it writes to `models/` (scenes, `_autosave.json`, `_reference.*`) — clean up test scenes.
+`test/server.test.ts` covers the hub with fake WebSocket pages. For the whole chain, drive `VOXER_SCRATCH=1 bun mcp/server.ts`
+over stdio (scratch mode: its own in-memory app server on a random port + headless Chrome, nothing written to
+`models/`): send `initialize`, `tools/list`, then `tools/call` for `new_scene` → `draw` → `snapshot` and decode
+the image content; `save_scene {path: "/tmp/…json"}` writes a file. Without scratch mode it uses `models/`
+(scenes, `_autosave.json`, `_reference.*`) and attaches to any app on `VOXER_PORT` (3005).
+`VOXER_SNAPSHOT_TIMEOUT_MS=150` forces the snapshot retry / relaunch path on a big scene.
+
+Scripts that just need a headless editor: `scripts/lib/headless.ts` (`startVoxer({ scratch: true })`).
 
 ## Definition of done
 `bun test` green, `bun run typecheck` clean, `bun run build` succeeds, and for anything visible a

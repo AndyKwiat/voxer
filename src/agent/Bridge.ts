@@ -72,6 +72,9 @@ export class Bridge {
         } catch (e) {
           reply = { type: "error", id: msg.id, error: (e as Error).message ?? String(e) };
         }
+        // Push any pending scene change *before* the reply, so once a caller sees a result the hub has
+        // the scene it produced (a stalled headless page can then be relaunched without losing work).
+        this.flushPush();
         this.ws?.send(JSON.stringify(reply));
         return;
       }
@@ -81,10 +84,15 @@ export class Bridge {
   private schedulePush(): void {
     if (!this.active) return;
     if (this.pushTimer) clearTimeout(this.pushTimer);
-    this.pushTimer = setTimeout(() => {
-      this.pushTimer = null;
-      if (this.active && this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ type: "scene", scene: this.editor.serialize() }));
-    }, 250);
+    this.pushTimer = setTimeout(() => this.flushPush(), 250);
+  }
+
+  /** Sends the scene now if a push is pending. */
+  private flushPush(): void {
+    if (!this.pushTimer) return;
+    clearTimeout(this.pushTimer);
+    this.pushTimer = null;
+    if (this.active && this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ type: "scene", scene: this.editor.serialize() }));
   }
 
   private render(state: string): void {

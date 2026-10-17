@@ -80,7 +80,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "snapshot",
     description:
-      "Render a labeled contact sheet (one PNG). Axis views are orthographic with a cell grid and rulers (numbers = cell coordinates); " +
+      "Render a labeled contact sheet (one PNG). If rendering is slow it is retried with smaller tiles / fewer views and the result says what was degraded. Axis views are orthographic with a cell grid and rulers (numbers = cell coordinates); " +
       "iso views are perspective. Default views: front, left, top, iso. Set reference=true to add the reference image as a tile for comparison.",
     inputSchema: {
       type: "object",
@@ -91,6 +91,8 @@ export const TOOLS: ToolDef[] = [
         reference: { type: "boolean" },
         shading: { type: "string", enum: ["flat", "lit"], description: "Axis views: flat (default) = exact palette colors; lit = scene lighting" },
         columns: { type: "integer", minimum: 1 },
+        figure: { type: "boolean", description: "Draw a blocky person (cyan legs, magenta torso, yellow head) beside the model, standing on y=0, to judge door heights and proportions. Snapshot-only, never part of the scene. Default false" },
+        figure_height: { type: "number", minimum: 1, maximum: 256, description: "Scale figure height in cells (default 8; implies figure=true)" },
       },
     },
   },
@@ -143,13 +145,13 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "save_scene",
-    description: "Save the current scene as models/<name>.json.",
-    inputSchema: { type: "object", properties: { name: { type: "string", pattern: "^[A-Za-z0-9][\\w.-]{0,63}$" } }, required: ["name"] },
+    description: "Save the current scene as models/<name>.json, or to an absolute file `path` (e.g. into your own project; parent dirs are created). Give name or path. In scratch mode names stay in memory, so use path to keep the file.",
+    inputSchema: { type: "object", properties: { name: { type: "string", pattern: "^[A-Za-z0-9][\\w.-]{0,63}$" }, path: { type: "string", description: "Absolute path of the .json file to write" } } },
   },
   {
     name: "load_scene",
-    description: "Load models/<name>.json (replaces the current scene, clears undo).",
-    inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    description: "Load models/<name>.json, or a scene JSON file at an absolute `path` (replaces the current scene, clears undo). Give name or path.",
+    inputSchema: { type: "object", properties: { name: { type: "string" }, path: { type: "string", description: "Absolute path of a Voxer scene .json file" } } },
   },
   {
     name: "list_scenes",

@@ -6,15 +6,25 @@
  * the bundle and starts one in-process; if no page is connected it launches headless Chrome. A browser
  * tab you open (`open_viewer`) takes over and the headless Chrome is closed.
  *
+ * Scratch mode (`VOXER_SCRATCH=1` or `--scratch`): always starts its own app server, in memory (no
+ * autosave, `save_scene {name}` stays in memory; use `save_scene {path}`), on a private random port
+ * (or VOXER_PORT if set), so it never touches `models/` or shares a page with your app on 3005.
+ *
  * Protocol: newline-delimited JSON-RPC 2.0 on stdin/stdout (MCP "stdio" transport). Logs go to stderr.
  */
 import { extname, isAbsolute, resolve } from "node:path";
 import { launchChrome, type Chrome } from "../scripts/lib/chrome";
-import { MODELS_DIR, startServer } from "../server/index";
+import { isScratch, MODELS_DIR, startServer } from "../server/index";
+import { readSceneFile, writeSceneFile } from "../server/SceneFile";
+import { degradedNote, snapshotWithRetry, toPageParams } from "./snapshot";
 import { INSTRUCTIONS, TOOLS } from "./tools";
 
-const PORT = Number(process.env.VOXER_PORT ?? 3005);
-const BASE = `http://127.0.0.1:${PORT}`;
+const SCRATCH = isScratch();
+// Scratch: port 0 = random, fixed once our server starts (see ensureServer).
+let PORT = Number(process.env.VOXER_PORT ?? (SCRATCH ? 0 : 3005));
+let BASE = `http://127.0.0.1:${PORT}`;
+/** Per-attempt snapshot timeout; failed attempts are retried smaller (mcp/snapshot.ts). */
+const SNAPSHOT_TIMEOUT_MS = Number(process.env.VOXER_SNAPSHOT_TIMEOUT_MS ?? 20_000);
 const ROOT = resolve(import.meta.dir, "..");
 const log = (...a: unknown[]) => console.error("[voxer-mcp]", ...a);
 
@@ -37,11 +47,14 @@ async function serverUp(): Promise<boolean> {
 }
 
 async function ensureServer(): Promise<void> {
-  if (await serverUp()) return;
-  log("building bundle and starting app server on", PORT);
+  if (SCRATCH ? ownServer : await serverUp()) return; // scratch never attaches to someone else's server
+  log("building bundle and starting app server on", PORT || "a random port", SCRATCH ? "(scratch: in memory)" : "");
   const build = Bun.spawnSync([process.execPath, "run", "build"], { cwd: ROOT, stdout: "ignore", stderr: "pipe" });
   if (build.exitCode !== 0) throw new Error("bun run build failed: " + build.stderr.toString());
-  ownServer = startServer(PORT, resolve(ROOT, "public"), { modelsDir: MODELS_DIR });
+  ownServer = startServer(PORT, resolve(ROOT, "public"), SCRATCH ? { scratch: true } : { modelsDir: MODELS_DIR });
+  PORT = ownServer.port!;
+  BASE = `http://127.0.0.1:${PORT}`;
+  if (SCRATCH) log("scratch app server at", BASE);
 }
 
 type Status = { clients: { headless: boolean; active: boolean }[]; active: { headless: boolean } | null };
@@ -74,13 +87,25 @@ async function reapHeadless(): Promise<void> {
 }
 setInterval(() => void reapHeadless(), 3000);
 
-async function rpc(method: string, params: unknown = {}): Promise<any> {
+async function rpc(method: string, params: unknown = {}, timeoutMs?: number): Promise<any> {
   await ensurePage();
-  let r = await api("/api/rpc", { method: "POST", body: JSON.stringify({ method, params }) });
-  if (r.status === 503) { await ensurePage(); r = await api("/api/rpc", { method: "POST", body: JSON.stringify({ method, params }) }); }
-  const body = (await r.json()) as { result?: unknown; error?: string };
-  if (body.error) throw new Error(body.error);
-  return body.result;
+  const body = JSON.stringify({ method, params, timeoutMs });
+  let r = await api("/api/rpc", { method: "POST", body });
+  if (r.status === 503) { await ensurePage(); r = await api("/api/rpc", { method: "POST", body }); }
+  const res = (await r.json()) as { result?: unknown; error?: string };
+  if (res.error) throw new Error(res.error);
+  return res.result;
+}
+
+/** Relaunches our headless Chrome if it is the active page (a stalled SwiftShader page). The new page gets the hub's last scene. */
+async function relaunchHeadless(): Promise<void> {
+  const s = await status().catch(() => null);
+  if (!chrome || (s?.active && !s.active.headless)) return;
+  log("relaunching headless Chrome");
+  chrome.kill();
+  chrome = null;
+  for (let i = 0; i < 40 && (await status()).active; i++) await Bun.sleep(100); // wait for the hub to drop it
+  await ensurePage();
 }
 
 // ---------- tool implementations ----------
@@ -106,9 +131,14 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
   run_script: async (a) => text(await rpc("run_script", { code: a.code })),
   get_layer: async (a) => text(await rpc("get_layer", a)),
   async snapshot(a) {
-    const r = await rpc("snapshot", a);
-    const note = a.reference && !r.hasReference ? " (no reference image is set)" : "";
-    return [{ type: "image", data: r.data, mimeType: r.mime }, ...text(`${r.width}×${r.height} sheet${note}. Ruler numbers are cell coordinates.`)];
+    await ensurePage();
+    const s = await status();
+    const ownHeadless = !!chrome && !!s.active?.headless;
+    const run = await snapshotWithRetry((p, t) => rpc("snapshot", p, t), toPageParams(a), { timeoutMs: SNAPSHOT_TIMEOUT_MS, recover: ownHeadless ? relaunchHeadless : undefined, log });
+    const r = run.result;
+    let note = a.reference && !r.hasReference ? " (no reference image is set)" : "";
+    if (a.figure) note += ` Scale figure: ${a.figure_height ?? 8} cells tall (cyan legs, magenta torso, yellow head), standing on y=0 beside the model; not part of the scene`;
+    return [{ type: "image", data: r.data, mimeType: r.mime }, ...text(`${r.width}×${r.height} sheet${note}. Ruler numbers are cell coordinates.${degradedNote(run)}`)];
   },
   set_view: async (a) => text(await rpc("set_view", a)),
   async undo(a) {
@@ -154,12 +184,16 @@ const handlers: Record<string, (a: any) => Promise<Content[]>> = {
     return text(await rpc("sample_reference", a));
   },
   async save_scene(a) {
+    if (!a.path && !a.name) throw new Error("give a name (models/<name>.json) or an absolute path");
     const scene = await rpc("serialize");
+    if (a.path) return text({ saved: await writeSceneFile(a.path, scene) });
     const r = await api(`/api/scenes/${encodeURIComponent(a.name)}`, { method: "PUT", body: JSON.stringify(scene) });
     if (!r.ok) throw new Error(((await r.json()) as { error: string }).error);
-    return text({ saved: `models/${a.name}.json` });
+    return text(SCRATCH ? { saved: `${a.name} (in memory only: scratch mode; use path to write a file)` } : { saved: `models/${a.name}.json` });
   },
   async load_scene(a) {
+    if (a.path) return text(brief(await rpc("load", { scene: await readSceneFile(a.path) })));
+    if (!a.name) throw new Error("give a name or an absolute path");
     await ensureServer();
     const r = await api(`/api/scenes/${encodeURIComponent(a.name)}`);
     if (!r.ok) throw new Error(((await r.json()) as { error: string }).error);
@@ -238,4 +272,4 @@ process.stdin.on("data", (chunk: string) => {
   }
 });
 process.stdin.on("end", shutdown);
-log(`ready (app port ${PORT})`);
+log(SCRATCH ? `ready (scratch mode: private in-memory app server${PORT ? ` on ${PORT}` : ""})` : `ready (app port ${PORT})`);
